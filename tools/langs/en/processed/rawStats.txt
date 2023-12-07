@@ -1,0 +1,13 @@
+Stats
+Max Length = 10
+Required Word Count = 34492
+Total Word Count = 84233
+Word Sets = 22501
+Distribution
+Length:4 has count 3191
+Length:5 has count 6455
+Length:6 has count 10812
+Length:7 has count 15470
+Length:8 has count 17438
+Length:9 has count 16777
+Length:10 has count 14090

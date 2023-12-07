@@ -1,0 +1,33 @@
+{
+  "identifier" : "0EBD30D8",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "0.99",
+      "familyShareable" : false,
+      "internalID" : "60AA71C3",
+      "localizations" : [
+        {
+          "description" : "Unlock levels 51 to 100 in all difficulties",
+          "displayName" : "Unlock levels 51 to 100",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "anagramladder.levels_51to100.difficulty_all",
+      "referenceName" : "Levels 51 to 100 in all difficulties",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+
+  },
+  "subscriptionGroups" : [
+
+  ],
+  "version" : {
+    "major" : 1,
+    "minor" : 1
+  }
+}

@@ -1,0 +1,5 @@
+bilabial
+labial
+spacer
+reseat
+seater
