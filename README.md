@@ -7,7 +7,7 @@ This is the full source code to the iOS and Android game. This is a good example
 of the dependencies and patterns are dated compared to the state of art Flutter.  
 
 ## Source
-- The main game is stored in in the lib folder
+- The main game is stored in the lib folder
 - The tools for pre-processing word files is stored in the tools folder
 
 ## Try it out
