@@ -49,11 +49,14 @@ class _AnagramLadderAppState extends State<AnagramLadderApp> {
   }
 
   final _theme = ThemeData(
+      useMaterial3: true,
       brightness: Brightness.light,
       pageTransitionsTheme: PageTransitionsTheme(),
       elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(textStyle: TextStyle(fontSize: 25))),
-      appBarTheme: AppBarTheme(color: Colors.deepPurple[700]), colorScheme: ColorScheme.fromSwatch(primarySwatch: Colors.deepPurple).copyWith(background: Colors.deepPurple[700]));
+      appBarTheme:
+          AppBarTheme(color: Colors.deepPurple, foregroundColor: Colors.white),
+      colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple));
 
   @override
   Widget build(BuildContext context) {

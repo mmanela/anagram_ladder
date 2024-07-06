@@ -36,7 +36,7 @@ dev_dependencies:
   shared_preferences: ^2.0.5
   flutter_markdown: ^0.6.1
   url_launcher: ^6.0.3
-  package_info_plus: ^4.1.0
+  package_info_plus: ^8.0.0
   confetti: ^0.6.0-nullsafety
   in_app_purchase: ^3.1.10
   flutter_test:

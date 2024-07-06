@@ -30,7 +30,10 @@ class WorldSetPage extends StatelessWidget {
                               Text("$label", textScaleFactor: textScaleFactor)),
                       Text("${info.completedCount} / ${info.levelCount}",
                           textScaleFactor: textScaleFactor,
-                          style: Theme.of(context).primaryTextTheme.titleMedium)
+                          style: Theme.of(context)
+                              .primaryTextTheme
+                              .titleMedium
+                              ?.copyWith(color: Theme.of(context).primaryColor))
                     ]))));
   }
 

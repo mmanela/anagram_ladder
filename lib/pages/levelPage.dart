@@ -30,9 +30,7 @@ class _LevelPageState extends State<LevelPage> {
   late List<List<String>> _filledLetters;
   int _currentRung = 0;
   late int _maxRung;
-  bool _isSaving = true;
-
-  // Indicates if the user just played this level
+  bool _isSaving = true; // Indicates if the user just played this level
   // versus it having already been won
   bool _wasPlayed = true;
   bool _levelComplete = false;
@@ -176,17 +174,17 @@ class _LevelPageState extends State<LevelPage> {
                   child: Card(
                       margin: EdgeInsets.all(4),
                       elevation: 2,
+                      shadowColor: Colors.white,
                       child: AnimatedContainer(
                           curve: Curves.easeInOut,
                           duration: Duration(
                               milliseconds: _levelCompleteAnimationDuration),
-                          color: _levelComplete
-                              ? Colors.green
-                              : Theme.of(context).selectedRowColor,
+                          color: _levelComplete ? Colors.green : Colors.white70,
                           child: Center(
                               child: Text(
                             letters[index],
-                            textScaleFactor: dimensions.textScaleFactor,
+                            textScaler:
+                                TextScaler.linear(dimensions.textScaleFactor),
                             style: TextStyle(
                                 fontSize: dimensions.boxFontSize,
                                 color: _levelComplete
