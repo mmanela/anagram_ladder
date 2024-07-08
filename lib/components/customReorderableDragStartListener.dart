@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 class CustomReorderableDragStartListener extends ReorderableDragStartListener {
@@ -17,6 +18,12 @@ class CustomReorderableDragStartListener extends ReorderableDragStartListener {
           draggingEnabled ? _startDragging(context, event) : null,
       child: child,
     );
+  }
+
+  @override
+  MultiDragGestureRecognizer createRecognizer() {
+    return DelayedMultiDragGestureRecognizer(
+        delay: const Duration(milliseconds: 1), debugOwner: this);
   }
 
   void _startDragging(BuildContext context, PointerDownEvent event) {
