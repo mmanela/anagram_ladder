@@ -17,7 +17,7 @@ class AboutPage extends StatelessWidget {
     return Markdown(
         onTapLink: (String text, String? href, String title) async {
           if (href != null) {
-            await launch(href);
+            await launchUrl(Uri.parse(href));
           }
         },
         styleSheet: MarkdownStyleSheet(

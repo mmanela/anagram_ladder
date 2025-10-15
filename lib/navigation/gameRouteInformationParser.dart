@@ -6,7 +6,7 @@ class GameRouteInformationParser extends RouteInformationParser<GameRoutePath> {
   @override
   Future<GameRoutePath> parseRouteInformation(
       RouteInformation routeInformation) async {
-    final uri = Uri.parse(routeInformation.location ?? "");
+    final uri = routeInformation.uri;
 
     String root = "";
     if (uri.pathSegments.length >= 1) {
@@ -45,26 +45,26 @@ class GameRouteInformationParser extends RouteInformationParser<GameRoutePath> {
   @override
   RouteInformation? restoreRouteInformation(GameRoutePath path) {
     if (path.page == GameRoutePage.Home) {
-      return RouteInformation(location: '/');
+      return RouteInformation(uri: Uri.parse('/'));
     }
     if (path.page == GameRoutePage.About) {
-      return RouteInformation(location: '/about');
+      return RouteInformation(uri: Uri.parse('/about'));
     }
     if (path.page == GameRoutePage.Settings) {
-      return RouteInformation(location: '/settings');
+      return RouteInformation(uri: Uri.parse('/settings'));
     }
     if (path.page == GameRoutePage.Pay) {
-      return RouteInformation(location: '/pay');
+      return RouteInformation(uri: Uri.parse('/pay'));
     }
     if (path.page == GameRoutePage.WorldSet) {
-      return RouteInformation(location: '/worldSet');
+      return RouteInformation(uri: Uri.parse('/worldSet'));
     }
     if (path.page == GameRoutePage.World) {
-      return RouteInformation(location: '/world/${path.world}');
+      return RouteInformation(uri: Uri.parse('/world/${path.world}'));
     }
     if (path.page == GameRoutePage.Level) {
       return RouteInformation(
-          location: '/world/${path.world}/level/${path.level}');
+          uri: Uri.parse('/world/${path.world}/level/${path.level}'));
     }
     return null;
   }

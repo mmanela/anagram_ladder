@@ -55,7 +55,7 @@ class _AnagramLadderAppState extends State<AnagramLadderApp> {
       elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(textStyle: TextStyle(fontSize: 25))),
       appBarTheme:
-          AppBarTheme(color: Colors.deepPurple, foregroundColor: Colors.white),
+          AppBarTheme(backgroundColor: Colors.deepPurple, foregroundColor: Colors.white),
       colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple));
 
   @override

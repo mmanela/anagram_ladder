@@ -50,7 +50,7 @@ class _SettingsPageState extends State<SettingsPage> {
         padding: EdgeInsets.only(bottom: 0),
         child: GameMenuButton(
             onPressed: () async {
-              await launch(feedbackEmailUrl);
+              await launchUrl(Uri.parse(feedbackEmailUrl));
             },
             child: Text("Send Feedback", textScaleFactor: textScaleFactor)));
   }
