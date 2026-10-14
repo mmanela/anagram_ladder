@@ -1,4 +1,3 @@
-import 'dart:math';
 
 import 'package:anagram_ladder/components/gameMenuButton.dart';
 import 'package:anagram_ladder/models/gameState.dart';
@@ -34,50 +33,61 @@ class _SettingsPageState extends State<SettingsPage> {
   static const String feedbackEmailUrl =
       "mailto:AnagramLadder@gmail.com?subject=Feedback";
   Widget _resetButton(BuildContext context) {
-    final textScaleFactor = min(1.2, MediaQuery.of(context).textScaleFactor);
+    final textScaler = MediaQuery.textScalerOf(context)
+        .clamp(maxScaleFactor: 1.2);
     return Container(
-        padding: EdgeInsets.only(bottom: 0),
-        child: GameMenuButton(
-            onPressed: () {
-              _showClearDataDialog();
-            },
-            child: Text("Reset Game", textScaleFactor: textScaleFactor)));
+      padding: EdgeInsets.only(bottom: 0),
+      child: GameMenuButton(
+        onPressed: () {
+          _showClearDataDialog();
+        },
+        child: Text("Reset Game", textScaler: textScaler),
+      ),
+    );
   }
 
   Widget _sendFeedbackButton(BuildContext context) {
-    final textScaleFactor = min(1.2, MediaQuery.of(context).textScaleFactor);
+    final textScaler = MediaQuery.textScalerOf(context)
+        .clamp(maxScaleFactor: 1.2);
     return Container(
-        padding: EdgeInsets.only(bottom: 0),
-        child: GameMenuButton(
-            onPressed: () async {
-              await launchUrl(Uri.parse(feedbackEmailUrl));
-            },
-            child: Text("Send Feedback", textScaleFactor: textScaleFactor)));
+      padding: EdgeInsets.only(bottom: 0),
+      child: GameMenuButton(
+        onPressed: () async {
+          await launchUrl(Uri.parse(feedbackEmailUrl));
+        },
+        child: Text("Send Feedback", textScaler: textScaler),
+      ),
+    );
   }
 
   Widget _versionInfo(BuildContext context) {
-    final textScaleFactor = min(1.4, MediaQuery.of(context).textScaleFactor);
+    final textScaler = MediaQuery.textScalerOf(context)
+        .clamp(maxScaleFactor: 1.4);
     return Container(
-        padding: EdgeInsets.fromLTRB(0, 10, 0, 10),
-        child: Text(
-          _versionText,
-          textScaleFactor: textScaleFactor,
-        ));
+      padding: EdgeInsets.fromLTRB(0, 10, 0, 10),
+      child: Text(_versionText, textScaler: textScaler),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(title: Text("Settings")),
-        body: SafeArea(
-            child: Column(children: [
-          Center(child: _versionInfo(context)),
-          Expanded(
+      appBar: AppBar(title: Text("Settings")),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Center(child: _versionInfo(context)),
+            Expanded(
               child: Container(
-                  padding: EdgeInsets.fromLTRB(0, 0, 0, 0),
-                  alignment: Alignment.topCenter,
-                  child: _gridView(context))),
-        ])));
+                padding: EdgeInsets.fromLTRB(0, 0, 0, 0),
+                alignment: Alignment.topCenter,
+                child: _gridView(context),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _gridView(BuildContext context) {
@@ -86,7 +96,7 @@ class _SettingsPageState extends State<SettingsPage> {
       crossAxisCount: isPortrait ? 1 : 2,
       children: <Widget>[
         Center(child: _resetButton(context)),
-        Center(child: _sendFeedbackButton(context))
+        Center(child: _sendFeedbackButton(context)),
       ],
       childAspectRatio: 3,
       padding: EdgeInsets.zero,
@@ -98,43 +108,53 @@ class _SettingsPageState extends State<SettingsPage> {
       context: context,
       barrierDismissible: true,
       builder: (BuildContext context) {
-        final textScaleFactor =
-            min(1.4, MediaQuery.of(context).textScaleFactor);
+        final textScaler = MediaQuery.textScalerOf(context)
+            .clamp(maxScaleFactor: 1.4);
         return AlertDialog(
           content: SingleChildScrollView(
             child: ListBody(
               children: <Widget>[
-                Text('Warning!',
-                    textScaleFactor: textScaleFactor,
-                    style: TextStyle(
-                        color: Colors.red,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 30)),
-                Text('Are you sure you want to reset all game data?',
-                    textScaleFactor: textScaleFactor),
+                Text(
+                  'Warning!',
+                  textScaler: textScaler,
+                  style: TextStyle(
+                    color: Colors.red,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 30,
+                  ),
+                ),
+                Text(
+                  'Are you sure you want to reset all game data?',
+                  textScaler: textScaler,
+                ),
               ],
             ),
           ),
           actions: <Widget>[
             OutlinedButton(
-                child: Text('Cancel',
-                    textScaleFactor: textScaleFactor,
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                }),
+              child: Text(
+                'Cancel',
+                textScaler: textScaler,
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
             SizedBox(width: 5),
             OutlinedButton(
               style: OutlinedButton.styleFrom(backgroundColor: Colors.red),
-              child: Text('Yes, I am sure',
-                  textScaleFactor: textScaleFactor,
-                  style: TextStyle(color: Colors.white)),
+              child: Text(
+                'Yes, I am sure',
+                textScaler: textScaler,
+                style: TextStyle(color: Colors.white),
+              ),
               onPressed: () async {
                 final gameState = context.read<GameState>();
                 await gameState.reset();
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                  content: Text('Game data reset'),
-                ));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Game data reset')),
+                );
                 Navigator.of(context).pop();
               },
             ),

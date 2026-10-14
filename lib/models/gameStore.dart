@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 
@@ -10,7 +11,7 @@ class GameStore extends ChangeNotifier {
   static final List<String> productIds = <String>[productUnlock51to100];
 
   InAppPurchase get _inAppPurchase => InAppPurchase.instance;
-  late StreamSubscription<List<PurchaseDetails>> _subscription;
+  StreamSubscription<List<PurchaseDetails>>? _subscription;
 
   List<PurchaseDetails> purchases = [];
   List<String> notFoundIds = [];
@@ -33,17 +34,25 @@ class GameStore extends ChangeNotifier {
     try {
       final Stream<List<PurchaseDetails>> purchaseUpdated =
           _inAppPurchase.purchaseStream;
-      _subscription = purchaseUpdated.listen((purchaseDetailsList) {
-        _listenToPurchaseUpdated(purchaseDetailsList);
-      }, onDone: () {
-        _subscription.cancel();
-      }, onError: (error) {
-        print("gameStore: Listen error -> $error");
-      });
+      _subscription = purchaseUpdated.listen(
+        (purchaseDetailsList) {
+          _listenToPurchaseUpdated(purchaseDetailsList);
+        },
+        onDone: () {
+          _subscription?.cancel();
+        },
+        onError: (error) {
+          print("gameStore: Listen error -> $error");
+          errorMessage = error.toString();
+          storeEvent = StoreEvent.error;
+          notifyListeners();
+        },
+      );
 
       await initStoreInfo();
     } catch (err) {
       print("gameStore: Store initialize error -> $err");
+      errorMessage = err.toString();
       storeEvent = StoreEvent.error;
       notifyListeners();
     } finally {
@@ -63,17 +72,18 @@ class GameStore extends ChangeNotifier {
       return;
     }
 
-    ProductDetailsResponse productDetailResponse =
-        await _inAppPurchase.queryProductDetails(productIds.toSet());
+    ProductDetailsResponse productDetailResponse = await _inAppPurchase
+        .queryProductDetails(productIds.toSet());
 
     products = productDetailResponse.productDetails;
     notFoundIds = productDetailResponse.notFoundIDs;
 
     if (productDetailResponse.error != null) {
       print(
-          "gameStore: Error querying: ${productDetailResponse.error!.message}");
+        "gameStore: Error querying: ${productDetailResponse.error!.message}",
+      );
       errorMessage = productDetailResponse.error!.message;
-      storeEvent = StoreEvent.ready;
+      storeEvent = StoreEvent.error;
       notifyListeners();
       return;
     } else {
@@ -93,6 +103,7 @@ class GameStore extends ChangeNotifier {
     print("gameStore: Event -> Listener called");
     purchaseDetailsList.forEach((PurchaseDetails purchaseDetails) async {
       if (purchaseDetails.status == PurchaseStatus.pending) {
+        errorMessage = null;
         storeEvent = StoreEvent.purchasePending;
         notifyListeners();
       } else {
@@ -101,7 +112,12 @@ class GameStore extends ChangeNotifier {
           storeEvent = StoreEvent.error;
           errorMessage = purchaseDetails.error!.message;
           notifyListeners();
-        } else if (purchaseDetails.status == PurchaseStatus.purchased) {
+        } else if (purchaseDetails.status == PurchaseStatus.canceled) {
+          errorMessage = null;
+          storeEvent = StoreEvent.ready;
+          notifyListeners();
+        } else if (purchaseDetails.status == PurchaseStatus.purchased ||
+            purchaseDetails.status == PurchaseStatus.restored) {
           print("gameStore: Event -> Recording purchased item");
           errorMessage = null;
           _addToPurchases(purchaseDetails);
@@ -115,12 +131,17 @@ class GameStore extends ChangeNotifier {
           print("gameStore: Event -> Completing pending purchase");
           errorMessage = null;
           storeEvent = StoreEvent.ready;
-          _addToPurchases(purchaseDetails);
           notifyListeners();
           await _inAppPurchase.completePurchase(purchaseDetails);
         }
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _subscription?.cancel();
+    super.dispose();
   }
 
   void _addToPurchases(PurchaseDetails purchaseDetails) {

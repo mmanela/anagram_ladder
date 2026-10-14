@@ -1,30 +1,32 @@
-import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class AboutPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(title: Text("About")),
-        body: SafeArea(child: _aboutBody(context)));
+      appBar: AppBar(title: Text("About")),
+      body: SafeArea(child: _aboutBody(context)),
+    );
   }
 
   Widget _aboutBody(BuildContext context) {
-    final textScaleFactor = min(1.4, MediaQuery.of(context).textScaleFactor);
+    final textScaler = MediaQuery.textScalerOf(context)
+        .clamp(maxScaleFactor: 1.4);
     return Markdown(
-        onTapLink: (String text, String? href, String title) async {
-          if (href != null) {
-            await launchUrl(Uri.parse(href));
-          }
-        },
-        styleSheet: MarkdownStyleSheet(
-            textScaleFactor: textScaleFactor,
-            p: TextStyle(fontSize: 20),
-            h2: TextStyle(fontSize: 24)),
-        data: '''## What is Anagram Ladder?
+      onTapLink: (String text, String? href, String title) async {
+        if (href != null) {
+          await launchUrl(Uri.parse(href));
+        }
+      },
+      styleSheet: MarkdownStyleSheet(
+        textScaler: textScaler,
+        p: TextStyle(fontSize: 20),
+        h2: TextStyle(fontSize: 24),
+      ),
+      data: '''## What is Anagram Ladder?
 Anagram Ladder is a __challenging__ word game for those who love to unscramble big words. 
 The game tasks you to solve a word ladder by unscrambling progressively longer words.
 Each time you solve one new letters appear on the end of the previous word
@@ -59,6 +61,7 @@ This is a good thing and consider it an early birthday present!
 Anagram Ladder was created by [Matthew Manela](https://matthewmanela.com) as a fun project to learn
 how to make a word game on mobile devices. If you have questions or feedback please send emails
 to [AnagramLadder@gmail.com](mailto:AnagramLadder@gmail.com?subject=Feedback).
-    ''');
+    ''',
+    );
   }
 }

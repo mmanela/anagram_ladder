@@ -1,3 +1,4 @@
+import 'package:anagram_ladder/models/gameState.dart';
 import 'package:flutter/material.dart';
 
 import 'gameRoutePath.dart';
@@ -5,7 +6,8 @@ import 'gameRoutePath.dart';
 class GameRouteInformationParser extends RouteInformationParser<GameRoutePath> {
   @override
   Future<GameRoutePath> parseRouteInformation(
-      RouteInformation routeInformation) async {
+    RouteInformation routeInformation,
+  ) async {
     final uri = routeInformation.uri;
 
     String root = "";
@@ -15,20 +17,24 @@ class GameRouteInformationParser extends RouteInformationParser<GameRoutePath> {
 
     switch (root) {
       case "world":
-        int? world;
-        int? level;
-        if (uri.pathSegments.length >= 2) {
-          world = int.tryParse(uri.pathSegments[1]);
+        if (uri.pathSegments.length != 2 && uri.pathSegments.length != 4) {
+          return GameRoutePath.unknown();
         }
-        if (uri.pathSegments.length >= 4 && uri.pathSegments[2] == 'level') {
-          level = int.tryParse(uri.pathSegments[3]);
+        final world = int.tryParse(uri.pathSegments[1]);
+        if (world == null || !GameState.worldIds.contains(world)) {
+          return GameRoutePath.unknown();
         }
-        if (level != null && world != null) {
-          return GameRoutePath.level(world, level);
-        } else if (world != null) {
+        if (uri.pathSegments.length == 2) {
           return GameRoutePath.world(world);
         }
-        return GameRoutePath.unknown();
+        final level = int.tryParse(uri.pathSegments[3]);
+        if (uri.pathSegments[2] != 'level' ||
+            level == null ||
+            level < 1 ||
+            level > GameState.UnlockedLevelsPerWorld) {
+          return GameRoutePath.unknown();
+        }
+        return GameRoutePath.level(world, level);
       case "worldSet":
         return GameRoutePath.worldSet();
       case "about":
@@ -36,7 +42,7 @@ class GameRouteInformationParser extends RouteInformationParser<GameRoutePath> {
       case "pay":
         return GameRoutePath.pay();
       case "settings":
-        return GameRoutePath.pay();
+        return GameRoutePath.settings();
       default:
         return GameRoutePath.home();
     }
@@ -64,7 +70,8 @@ class GameRouteInformationParser extends RouteInformationParser<GameRoutePath> {
     }
     if (path.page == GameRoutePage.Level) {
       return RouteInformation(
-          uri: Uri.parse('/world/${path.world}/level/${path.level}'));
+        uri: Uri.parse('/world/${path.world}/level/${path.level}'),
+      );
     }
     return null;
   }

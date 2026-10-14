@@ -14,15 +14,23 @@ class MuliTrie<K, P extends Comparable<P>, V> extends MapBase<K, Set<V>> {
 
   /// Creates a [MuliTrie] from another instance. Optionally redefines how the
   /// [parts] of the keys are computed and provides a custom [root] node.
-  factory MuliTrie.fromTrie(MuliTrie<K, P, V> other,
-          {GetParts<K, P>? parts, TrieNode<K, P, V>? root}) =>
-      MuliTrie<K, P, V>.fromMap(other,
-          parts: parts ?? other._getParts, root: root);
+  factory MuliTrie.fromTrie(
+    MuliTrie<K, P, V> other, {
+    GetParts<K, P>? parts,
+    TrieNode<K, P, V>? root,
+  }) => MuliTrie<K, P, V>.fromMap(
+    other,
+    parts: parts ?? other._getParts,
+    root: root,
+  );
 
   /// Creates a [MuliTrie] from a [Map]. The [parts] define how the keys are
   /// computed and optionally provides a custom [root] node.
-  factory MuliTrie.fromMap(Map<K, Set<V>> other,
-      {required GetParts<K, P> parts, TrieNode<K, P, V>? root}) {
+  factory MuliTrie.fromMap(
+    Map<K, Set<V>> other, {
+    required GetParts<K, P> parts,
+    TrieNode<K, P, V>? root,
+  }) {
     final result = MuliTrie<K, P, V>(parts: parts, root: root);
     result.addAll(other);
     return result;
@@ -31,25 +39,29 @@ class MuliTrie<K, P extends Comparable<P>, V> extends MapBase<K, Set<V>> {
   /// Creates a [MuliTrie] from an iterable (and possible transformation functions).
   /// The [parts] define how the keys are computed and optionally provides a
   /// custom [root] node.
-  factory MuliTrie.fromIterable/*<E>*/(
-    Iterable/*<E>*/ iterable, {
+  factory MuliTrie.fromIterable /*<E>*/ (
+    Iterable /*<E>*/ iterable, {
     required GetParts<K, P> parts,
     TrieNode<K, P, V>? root,
     // ignore: use_function_type_syntax_for_parameters
     K key(/*E*/ element)?,
     // ignore: use_function_type_syntax_for_parameters
     V value(/*E*/ element)?,
-  }) =>
-      MuliTrie<K, P, V>.fromIterables(
-          key == null ? iterable.cast<K>() : iterable.map(key),
-          value == null ? iterable.cast<V>() : iterable.map(value),
-          parts: parts,
-          root: root);
+  }) => MuliTrie<K, P, V>.fromIterables(
+    key == null ? iterable.cast<K>() : iterable.map(key),
+    value == null ? iterable.cast<V>() : iterable.map(value),
+    parts: parts,
+    root: root,
+  );
 
   /// Creates a [MuliTrie] from two equal length iterables. The [parts] define how
   /// the keys are computed and optionally provides a custom [root] node.
-  factory MuliTrie.fromIterables(Iterable<K> keys, Iterable<V> values,
-      {required GetParts<K, P> parts, TrieNode<K, P, V>? root}) {
+  factory MuliTrie.fromIterables(
+    Iterable<K> keys,
+    Iterable<V> values, {
+    required GetParts<K, P> parts,
+    TrieNode<K, P, V>? root,
+  }) {
     final result = MuliTrie<K, P, V>(parts: parts, root: root);
     final keyIterator = keys.iterator;
     final valueIterator = values.iterator;
@@ -77,10 +89,14 @@ class MuliTrie<K, P extends Comparable<P>, V> extends MapBase<K, Set<V>> {
 
   /// Internal constructor of the [MuliTrie].
   MuliTrie._(this._root, this._getParts)
-      : assert(!_root.hasKeyAndValue,
-            'The initial root should not have a key or value.'),
-        assert(!_root.hasChildren,
-            'The initial root node should not have children.');
+    : assert(
+        !_root.hasKeyAndValue,
+        'The initial root should not have a key or value.',
+      ),
+      assert(
+        !_root.hasChildren,
+        'The initial root node should not have children.',
+      );
 
   @override
   int get length => _length;
@@ -223,8 +239,7 @@ class MuliTrie<K, P extends Comparable<P>, V> extends MapBase<K, Set<V>> {
 }
 
 /// Abstract implementation of the nodes in a [MuliTrie].
-abstract class TrieNode<K, P extends Comparable<P>, V>
-    implements MapEntry<K, Set<V>> {
+abstract class TrieNode<K, P extends Comparable<P>, V> {
   /// Parts of the child nodes.
   Iterable<P> get parts;
 
@@ -247,11 +262,9 @@ abstract class TrieNode<K, P extends Comparable<P>, V>
   void clearChildren();
 
   /// Returns the key of the node, if this node has a key and value.
-  @override
   K get key;
 
   /// Returns the value of the node, if this node has a key and value.
-  @override
   Set<V> get value;
 
   /// Returns `true`, if the node has a key and value.
@@ -271,10 +284,11 @@ abstract class TrieNode<K, P extends Comparable<P>, V>
     while (queue.isNotEmpty) {
       final element = queue.removeLast();
       if (element.hasKeyAndValue) {
-        yield element;
+        yield MapEntry(element.key, element.value);
       }
-      final children = element.children
-          .where((element) => element.hasKeyAndValue || element.hasChildren);
+      final children = element.children.where(
+        (element) => element.hasKeyAndValue || element.hasChildren,
+      );
       queue.addAll(children.toList().reversed);
     }
   }

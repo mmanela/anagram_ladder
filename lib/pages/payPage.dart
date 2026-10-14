@@ -1,4 +1,3 @@
-import 'dart:math';
 
 import 'package:anagram_ladder/models/gameStore.dart';
 import 'package:flutter/material.dart';
@@ -43,9 +42,7 @@ class _PayPageState extends State<PayPage> {
     List<Widget> stack = [];
 
     stack.add(
-      ListView(
-        children: [_buildConnectionCheckTile(), _buildProductList()],
-      ),
+      ListView(children: [_buildConnectionCheckTile(), _buildProductList()]),
     );
 
     if (_store.storeEvent == StoreEvent.purchasePending) {
@@ -56,30 +53,27 @@ class _PayPageState extends State<PayPage> {
               opacity: 0.3,
               child: const ModalBarrier(dismissible: false, color: Colors.grey),
             ),
-            Center(
-              child: CircularProgressIndicator(),
-            ),
+            Center(child: CircularProgressIndicator()),
           ],
         ),
       );
     }
 
     return Scaffold(
-        appBar: AppBar(title: Text("Store")),
-        body: SafeArea(
-          child: Stack(
-            children: stack,
-          ),
-        ));
+      appBar: AppBar(title: Text("Store")),
+      body: SafeArea(child: Stack(children: stack)),
+    );
   }
 
   Card _buildConnectionCheckTile() {
-    final textScaleFactor = min(1.4, MediaQuery.of(context).textScaleFactor);
+    final textScaler = MediaQuery.textScalerOf(context)
+        .clamp(maxScaleFactor: 1.4);
     if (!_store.isLoaded) {
       return Card(
-          child: ListTile(
-              title: Text('Trying to connect...',
-                  textScaleFactor: textScaleFactor)));
+        child: ListTile(
+          title: Text('Trying to connect...', textScaler: textScaler),
+        ),
+      );
     }
     final List<Widget> children = <Widget>[];
 
@@ -87,11 +81,15 @@ class _PayPageState extends State<PayPage> {
       children.addAll([
         Divider(),
         ListTile(
-          title: Text('Not connected',
-              style: TextStyle(color: ThemeData.light().colorScheme.error),
-              textScaleFactor: textScaleFactor),
-          subtitle: Text('Unable to connect to the store!',
-              textScaleFactor: textScaleFactor),
+          title: Text(
+            'Not connected',
+            style: TextStyle(color: ThemeData.light().colorScheme.error),
+            textScaler: textScaler,
+          ),
+          subtitle: Text(
+            'Unable to connect to the store!',
+            textScaler: textScaler,
+          ),
         ),
       ]);
     }
@@ -99,36 +97,41 @@ class _PayPageState extends State<PayPage> {
   }
 
   Card _buildProductList() {
-    final textScaleFactor = min(1.4, MediaQuery.of(context).textScaleFactor);
+    final textScaler = MediaQuery.textScalerOf(context)
+        .clamp(maxScaleFactor: 1.4);
     if (!_store.isLoaded) {
       return Card(
-          child: (ListTile(
-              leading: CircularProgressIndicator(),
-              title: Text('Fetching products...',
-                  textScaleFactor: textScaleFactor))));
+        child: (ListTile(
+          leading: CircularProgressIndicator(),
+          title: Text('Fetching products...', textScaler: textScaler),
+        )),
+      );
     }
     if (!_store.isAvailable) {
       return Card();
     }
     List<ListTile> productList = <ListTile>[];
     if (_store.notFoundIds.isNotEmpty) {
-      productList.add(ListTile(
-          title: Text('[${_store.notFoundIds.join(", ")}] not found',
-              style: TextStyle(
-                color: ThemeData.light().colorScheme.error,
-              ),
-              textScaleFactor: textScaleFactor),
-          subtitle: Text('Failed to find products.',
-              textScaleFactor: textScaleFactor)));
+      productList.add(
+        ListTile(
+          title: Text(
+            '[${_store.notFoundIds.join(", ")}] not found',
+            style: TextStyle(color: ThemeData.light().colorScheme.error),
+            textScaler: textScaler,
+          ),
+          subtitle: Text('Failed to find products.', textScaler: textScaler),
+        ),
+      );
     }
 
-    Map<String, PurchaseDetails> purchases =
-        Map.fromEntries(_store.purchases.map((PurchaseDetails purchase) {
-      _store.completePendingPurchase(purchase);
-      return MapEntry<String, PurchaseDetails>(purchase.productID, purchase);
-    }));
-    productList.addAll(_store.products.map(
-      (ProductDetails productDetails) {
+    Map<String, PurchaseDetails> purchases = Map.fromEntries(
+      _store.purchases.map((PurchaseDetails purchase) {
+        _store.completePendingPurchase(purchase);
+        return MapEntry<String, PurchaseDetails>(purchase.productID, purchase);
+      }),
+    );
+    productList.addAll(
+      _store.products.map((ProductDetails productDetails) {
         PurchaseDetails? previousPurchase = purchases[productDetails.id];
         String title = productDetails.description.isEmpty
             ? productDetails.title
@@ -137,24 +140,26 @@ class _PayPageState extends State<PayPage> {
             ? "Unlock levels 51 to 100 in all difficulties"
             : title;
         return ListTile(
-            title: Text(title, textScaleFactor: textScaleFactor),
-            trailing: previousPurchase != null
-                ? Icon(Icons.check)
-                : TextButton(
-                    child: Text(productDetails.price,
-                        textScaleFactor: textScaleFactor),
-                    style: TextButton.styleFrom(
-                      foregroundColor: Colors.white, backgroundColor: Colors.green[800],
-                    ),
-                    onPressed: () {
-                      _store.purchaseProduct(productDetails);
-                    },
-                  ));
-      },
-    ));
+          title: Text(title, textScaler: textScaler),
+          trailing: previousPurchase != null
+              ? Icon(Icons.check)
+              : TextButton(
+                  child: Text(productDetails.price, textScaler: textScaler),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    backgroundColor: Colors.green[800],
+                  ),
+                  onPressed: () {
+                    _store.purchaseProduct(productDetails);
+                  },
+                ),
+        );
+      }),
+    );
 
     return Card(
-        margin: EdgeInsets.fromLTRB(10, 20, 10, 0),
-        child: Column(children: productList));
+      margin: EdgeInsets.fromLTRB(10, 20, 10, 0),
+      child: Column(children: productList),
+    );
   }
 }

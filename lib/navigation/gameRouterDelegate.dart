@@ -11,6 +11,7 @@ import 'package:anagram_ladder/pages/unknownPage.dart';
 import 'package:anagram_ladder/pages/worldPage.dart';
 import 'package:anagram_ladder/pages/worldSet.dart';
 import 'package:flutter/material.dart';
+
 import 'gameRoutePath.dart';
 
 class GameRouterDelegate extends RouterDelegate<GameRoutePath>
@@ -20,7 +21,7 @@ class GameRouterDelegate extends RouterDelegate<GameRoutePath>
   final GameState _gameState;
   final GameStore _gameStore;
   GameRouterDelegate(this._routeNavigator, this._gameState, this._gameStore)
-      : _navigatorKey = GlobalKey<NavigatorState>() {
+    : _navigatorKey = GlobalKey<NavigatorState>() {
     _routeNavigator.addListener(notifyListeners);
     _gameState.addListener(notifyListeners);
     _gameStore.addListener(notifyListeners);
@@ -34,61 +35,89 @@ class GameRouterDelegate extends RouterDelegate<GameRoutePath>
     super.dispose();
   }
 
-  GameRoutePath get currentConfiguration => _routeNavigator.current;
+  GameRoutePath get currentConfiguration {
+    final path = _routeNavigator.current;
+    if (_gameState.isLoaded &&
+        (path.page == GameRoutePage.World ||
+            path.page == GameRoutePage.Level) &&
+        (!GameState.worldIds.contains(path.world) ||
+            (path.page == GameRoutePage.Level &&
+                (path.level == null ||
+                    path.level! < 1 ||
+                    path.level! >
+                        _gameState.getWorldLevelCount(path.world!))))) {
+      return GameRoutePath.unknown();
+    }
+    return path;
+  }
 
   @override
   Widget build(BuildContext context) {
     return Navigator(
       key: navigatorKey,
       pages: !_gameState.isLoaded || !_gameStore.isLoaded
-          ? [
-              MaterialPage(
-                key: ValueKey('LoadingPage'),
-                child: LoadingPage(),
-              )
-            ]
+          ? [MaterialPage(key: ValueKey('LoadingPage'), child: LoadingPage())]
           : [
-              MaterialPage(
-                key: ValueKey('HomePage'),
-                child: HomePage(),
-              ),
+              MaterialPage(key: ValueKey('HomePage'), child: HomePage()),
               if (currentConfiguration.page == GameRoutePage.Unknown)
                 MaterialPage(
-                    key: ValueKey('UnknownPage'), child: UnknownPage()),
+                  key: ValueKey('UnknownPage'),
+                  child: UnknownPage(),
+                ),
               if (currentConfiguration.page == GameRoutePage.Settings)
                 MaterialPage(
-                    key: ValueKey('SettingsPage'), child: SettingsPage()),
+                  key: ValueKey('SettingsPage'),
+                  child: SettingsPage(),
+                ),
               if (currentConfiguration.page == GameRoutePage.About)
                 MaterialPage(key: ValueKey('AboutPage'), child: AboutPage()),
               if (currentConfiguration.page == GameRoutePage.WorldSet ||
                   currentConfiguration.page == GameRoutePage.World ||
                   currentConfiguration.page == GameRoutePage.Level)
                 MaterialPage(
-                    key: ValueKey('WorldSetPage'), child: WorldSetPage()),
+                  key: ValueKey('WorldSetPage'),
+                  child: WorldSetPage(),
+                ),
               if (currentConfiguration.page == GameRoutePage.World ||
                   currentConfiguration.page == GameRoutePage.Level ||
                   currentConfiguration.source == GameRoutePage.World)
                 MaterialPage(
-                    key: ValueKey('WorldPage'),
-                    child: WorldPage(currentConfiguration.world!)),
+                  key: ValueKey('WorldPage'),
+                  child: WorldPage(currentConfiguration.world!),
+                ),
               if (currentConfiguration.page == GameRoutePage.Level)
                 MaterialPage(
-                    key: ValueKey('LevelPage'),
-                    child: LevelPage(currentConfiguration.world!,
-                        currentConfiguration.level!,
-                        key: Key(
-                            "${currentConfiguration.world!}_${currentConfiguration.level!}"))),
+                  key: ValueKey('LevelPage'),
+                  child: LevelPage(
+                    currentConfiguration.world!,
+                    currentConfiguration.level!,
+                    key: Key(
+                      "${currentConfiguration.world!}_${currentConfiguration.level!}",
+                    ),
+                  ),
+                ),
               if (currentConfiguration.page == GameRoutePage.Pay)
                 MaterialPage(key: ValueKey('PayPage'), child: PayPage()),
             ],
-      onPopPage: (route, result) {
-        if (!route.didPop(result)) {
-          return false;
+      onDidRemovePage: (page) {
+        // Declarative route changes also remove pages. Only handle user pops.
+        final currentPageKey = switch (currentConfiguration.page) {
+          GameRoutePage.Home => 'HomePage',
+          GameRoutePage.Unknown => 'UnknownPage',
+          GameRoutePage.About => 'AboutPage',
+          GameRoutePage.Settings => 'SettingsPage',
+          GameRoutePage.Pay => 'PayPage',
+          GameRoutePage.WorldSet => 'WorldSetPage',
+          GameRoutePage.World => 'WorldPage',
+          GameRoutePage.Level => 'LevelPage',
+        };
+        if (page.key != ValueKey(currentPageKey)) {
+          return;
         }
 
         switch (currentConfiguration.page) {
           case GameRoutePage.Home:
-            return false;
+            return;
           case GameRoutePage.Unknown:
           case GameRoutePage.About:
           case GameRoutePage.WorldSet:
@@ -97,8 +126,9 @@ class GameRouterDelegate extends RouterDelegate<GameRoutePath>
             break;
           case GameRoutePage.Pay:
             if (currentConfiguration.source == GameRoutePage.World) {
-              _routeNavigator
-                  .goto(GameRoutePath.world(currentConfiguration.world!));
+              _routeNavigator.goto(
+                GameRoutePath.world(currentConfiguration.world!),
+              );
             } else {
               _routeNavigator.goto(GameRoutePath.home());
             }
@@ -107,13 +137,11 @@ class GameRouterDelegate extends RouterDelegate<GameRoutePath>
             _routeNavigator.goto(GameRoutePath.worldSet());
             break;
           case GameRoutePage.Level:
-            _routeNavigator
-                .goto(GameRoutePath.world(currentConfiguration.world!));
+            _routeNavigator.goto(
+              GameRoutePath.world(currentConfiguration.world!),
+            );
             break;
         }
-        notifyListeners();
-
-        return true;
       },
     );
   }

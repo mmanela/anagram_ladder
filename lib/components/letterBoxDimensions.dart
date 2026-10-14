@@ -15,21 +15,23 @@ class LetterBoxDimensions {
   final double activeInfoBuffer = 50;
   late double effectiveMaxWidth;
   bool scrollNeeded = false;
-  late double textScaleFactor;
+  late TextScaler textScaler;
 
   LetterBoxDimensions(BuildContext context, int world, int rungs) {
     // Calculate width for device size
     final media = MediaQuery.of(context);
     final deviceSize = media.size;
-    textScaleFactor = min(1.25, MediaQuery.of(context).textScaleFactor);
+    textScaler = MediaQuery.textScalerOf(context).clamp(maxScaleFactor: 1.25);
     screenHeight = deviceSize.height;
     screenWidth = deviceSize.width;
-    effectiveMaxWidth = min(deviceSize.width, MaxBoardWidth) -
+    effectiveMaxWidth =
+        min(deviceSize.width, MaxBoardWidth) -
         outerPadding -
         (media.padding.right + media.padding.left);
     boxWidth = effectiveMaxWidth / world;
-    boxRatio =
-        media.orientation == Orientation.portrait ? 7.0 / 5.0 : 6.0 / 7.0;
+    boxRatio = media.orientation == Orientation.portrait
+        ? 7.0 / 5.0
+        : 6.0 / 7.0;
     boxHeight = boxWidth * boxRatio;
     maxLetterBoxWidth = boxWidth * world;
     scrollNeeded =

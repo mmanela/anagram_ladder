@@ -26,6 +26,7 @@ class GameState with ChangeNotifier {
   SharedPreferences? _sharedPreferences;
   final Map<int, List<LadderLevel>> _ladders = Map();
   static const DefaultLevelsPerWorld = 50;
+  static const UnlockedLevelsPerWorld = 100;
   int maxLevelsPerWorld = DefaultLevelsPerWorld;
   final Map<int, WorldCompletionInfo> _worldCompletionInfo = Map();
   bool get shouldAdverstiseMoreLevels =>
@@ -63,7 +64,7 @@ class GameState with ChangeNotifier {
   Future _setMaxLevelCount() async {
     int newLevelCount;
     if (this.gameStore.hasUnlocked51To100) {
-      newLevelCount = 100;
+      newLevelCount = UnlockedLevelsPerWorld;
       _shouldAdverstiseMoreLevels = false;
     } else {
       newLevelCount = DefaultLevelsPerWorld;

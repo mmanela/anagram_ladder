@@ -1,4 +1,3 @@
-import 'dart:math';
 
 import 'package:anagram_ladder/components/gameMenuButton.dart';
 import 'package:anagram_ladder/navigation/gameRouteNavigator.dart';
@@ -22,53 +21,67 @@ class _HomePageState extends State<HomePage> {
         MediaQuery.of(context).orientation == Orientation.portrait;
     final windowSize = MediaQuery.of(context).size;
     return Scaffold(
-        body: SafeArea(
-            child: Center(
-                child: Padding(
-      padding: EdgeInsets.fromLTRB(0, 5, 0, 10),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Hero(
-              tag: "logo",
-              child: ConstrainedBox(
-                  constraints: isPortrait
-                      ? BoxConstraints.loose(Size.fromWidth(windowSize.width))
-                      : BoxConstraints.loose(Size.fromHeight(150)),
-                  child: Image(image: AssetImage("assets/ag_logo_wide.png")))),
-          SizedBox(height: 10),
-          Expanded(child: _gridView(context))
-        ],
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(0, 5, 0, 10),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Hero(
+                  tag: "logo",
+                  child: ConstrainedBox(
+                    constraints: isPortrait
+                        ? BoxConstraints.loose(Size.fromWidth(windowSize.width))
+                        : BoxConstraints.loose(Size.fromHeight(150)),
+                    child: Image(image: AssetImage("assets/ag_logo_wide.png")),
+                  ),
+                ),
+                SizedBox(height: 10),
+                Expanded(child: _gridView(context)),
+              ],
+            ),
+          ),
+        ),
       ),
-    ))));
+    );
   }
 }
 
 Widget _gridView(BuildContext context) {
-  final textScaleFactor = min(1.4, MediaQuery.of(context).textScaleFactor);
+  final textScaler = MediaQuery.textScalerOf(context)
+      .clamp(maxScaleFactor: 1.4);
   final nav = context.read<GameRouteNavigator>();
   final isPortrait = shouldTreatAsPortrait(context);
   return GridView.count(
     crossAxisCount: isPortrait ? 1 : 2,
     children: <Widget>[
       Center(
-          child: GameMenuButton(
-              onPressed: () => nav.goto(GameRoutePath.worldSet()),
-              child: Text("Play", textScaleFactor: textScaleFactor))),
+        child: GameMenuButton(
+          onPressed: () => nav.goto(GameRoutePath.worldSet()),
+          child: Text("Play", textScaler: textScaler),
+        ),
+      ),
       Center(
-          child: GameMenuButton(
-              onPressed: () => nav.goto(GameRoutePath.about()),
-              child: Text("About", textScaleFactor: textScaleFactor))),
+        child: GameMenuButton(
+          onPressed: () => nav.goto(GameRoutePath.about()),
+          child: Text("About", textScaler: textScaler),
+        ),
+      ),
       Center(
-          child: GameMenuButton(
-              onPressed: () => nav.goto(GameRoutePath.settings()),
-              child: Text("Settings", textScaleFactor: textScaleFactor))),
+        child: GameMenuButton(
+          onPressed: () => nav.goto(GameRoutePath.settings()),
+          child: Text("Settings", textScaler: textScaler),
+        ),
+      ),
       if (defaultTargetPlatform != TargetPlatform.android)
         Center(
-            child: GameMenuButton(
-                onPressed: () => nav.goto(GameRoutePath.pay()),
-                child: Text("Store", textScaleFactor: textScaleFactor))),
+          child: GameMenuButton(
+            onPressed: () => nav.goto(GameRoutePath.pay()),
+            child: Text("Store", textScaler: textScaler),
+          ),
+        ),
     ],
     childAspectRatio: isBigScreen(context) ? 3 : 4,
     padding: EdgeInsets.zero,
