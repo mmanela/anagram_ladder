@@ -27,7 +27,7 @@ puzzles, free hints, level access, and v5 saved-progress format.
   The system reduced-motion setting disables these delays, animated scrolling,
   and confetti.
 - Hints appear only when requested, in a compact popup for one possible answer.
-  Its first letter is shown immediately; optionally reveal its last letter.
+  Its first and last letters are shown immediately, with the middle hidden.
   Selection prefers the existing SCOWL dictionary's smaller vocabulary tiers
   (10, then 20, then 35), with stable ties and a stable fallback for unlisted
   answers. These are familiarity tiers, not exact word-frequency scores.

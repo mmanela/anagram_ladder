@@ -364,15 +364,11 @@ void main() {
     await tester.tap(find.text('Hint'));
     await tester.pumpAndSettle();
     expect(find.byType(AlertDialog), findsOneWidget);
-    expect(find.text('s _ _ _'), findsOneWidget);
-    expect(find.text('Show last letter'), findsOneWidget);
+    expect(find.text('s _ _ r'), findsOneWidget);
+    expect(find.text('Show last letter'), findsNothing);
     expect(find.byTooltip('Next answer'), findsNothing);
     expect(find.text('star'), findsNothing);
     expect(find.text('rats'), findsNothing);
-    await tester.tap(find.text('Show last letter'));
-    await tester.pump();
-    expect(find.text('s _ _ r'), findsOneWidget);
-    expect(find.text('Show last letter'), findsNothing);
     await tester.ensureVisible(find.text('Close'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Close'));
@@ -383,8 +379,8 @@ void main() {
 
     await tester.tap(find.text('Hint'));
     await tester.pumpAndSettle();
-    expect(find.text('s _ _ _'), findsOneWidget);
-    expect(find.text('Show last letter'), findsOneWidget);
+    expect(find.text('s _ _ r'), findsOneWidget);
+    expect(find.text('Show last letter'), findsNothing);
     await tester.tapAt(const Offset(5, 5));
     await tester.pumpAndSettle();
     expect(find.byType(HintDialog), findsNothing);
@@ -414,17 +410,12 @@ void main() {
     );
     await tester.tap(find.text('Hints'));
     await tester.pumpAndSettle();
-    expect(find.text('s _ _ _'), findsOneWidget);
-    expect(find.text('Show last letter'), findsOneWidget);
+    expect(find.text('s _ _ r'), findsOneWidget);
+    expect(find.text('Show last letter'), findsNothing);
     final popup = find
-        .ancestor(of: find.text('s _ _ _'), matching: find.byType(Material))
+        .ancestor(of: find.text('s _ _ r'), matching: find.byType(Material))
         .first;
     expect(tester.getSize(popup).height, lessThan(568));
-    await tester.ensureVisible(find.text('Show last letter'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Show last letter'));
-    await tester.pump();
-    expect(find.text('s _ _ r'), findsOneWidget);
     await tester.ensureVisible(find.text('Close'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Close'));
@@ -458,7 +449,7 @@ void main() {
       await tester.tap(find.text('Hints'));
       await tester.pumpAndSettle();
       final popup = find
-          .ancestor(of: find.text('s _ _ _'), matching: find.byType(Material))
+          .ancestor(of: find.text('s _ _ r'), matching: find.byType(Material))
           .first;
       final height = tester.getSize(popup).height;
       expect(height, lessThan(280));
@@ -472,7 +463,7 @@ void main() {
     }
   });
 
-  testWidgets('hint semantics reveal only the selected end letters', (
+  testWidgets('hint semantics immediately reveal both end letters only', (
     tester,
   ) async {
     final semantics = tester.ensureSemantics();
@@ -481,14 +472,8 @@ void main() {
       await openFixture(tester);
       await tester.tap(find.text('Hint'));
       await tester.pumpAndSettle();
-      expect(
-        find.bySemanticsLabel('4-letter word. First letter: s.'),
-        findsOneWidget,
-      );
       expect(find.bySemanticsLabel('star'), findsNothing);
       expect(find.bySemanticsLabel('rats'), findsNothing);
-      await tester.tap(find.text('Show last letter'));
-      await tester.pump();
       expect(
         find.bySemanticsLabel(
           '4-letter word. First letter: s. Last letter: r.',
@@ -526,11 +511,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(HintDialog), findsOneWidget);
       expect(tester.takeException(), isNull);
-      await tester.ensureVisible(find.text('Show last letter'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Show last letter'));
-      await tester.pump();
-      expect(tester.takeException(), isNull);
+      expect(find.text('Show last letter'), findsNothing);
       await tester.ensureVisible(find.text('Close'));
       await tester.tap(find.text('Close'));
       await tester.pumpAndSettle();

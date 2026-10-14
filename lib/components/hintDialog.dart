@@ -22,7 +22,6 @@ class HintDialog extends StatefulWidget {
 
 class _HintDialogState extends State<HintDialog> {
   late Future<String> _word;
-  bool _showLast = false;
 
   @override
   void initState() {
@@ -60,7 +59,7 @@ class _HintDialogState extends State<HintDialog> {
                   liveRegion: true,
                   label:
                       '${word.length}-letter word. First letter: ${word[0]}.'
-                      '${_showLast ? ' Last letter: ${word[word.length - 1]}.' : ''}',
+                      ' Last letter: ${word[word.length - 1]}.',
                   excludeSemantics: true,
                   child: FittedBox(
                     fit: BoxFit.scaleDown,
@@ -68,9 +67,7 @@ class _HintDialogState extends State<HintDialog> {
                     child: Text(
                       List.generate(
                         word.length,
-                        (index) =>
-                            index == 0 ||
-                                (_showLast && index == word.length - 1)
+                        (index) => index == 0 || index == word.length - 1
                             ? word[index]
                             : '_',
                       ).join(' '),
@@ -84,11 +81,6 @@ class _HintDialogState extends State<HintDialog> {
               TextButton(
                 onPressed: () => setState(() => _word = _selectWord()),
                 child: const Text('Retry'),
-              ),
-            if (word != null && !_showLast)
-              TextButton(
-                onPressed: () => setState(() => _showLast = true),
-                child: const Text('Show last letter'),
               ),
             FilledButton(
               onPressed: () => Navigator.pop(context),
