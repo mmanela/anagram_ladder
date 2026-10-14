@@ -33,9 +33,12 @@ puzzles, free hints, level access, and v5 saved-progress format.
   later visits. How to play remains available in the app bar; selecting a letter
   still shows its contextual destination prompt. Resetting progress preserves
   this learned-controls preference.
-- Solves animate for 320 ms, with a 180 ms pause before automatic cascades.
-  Newly added letters briefly highlight for 700 ms, including repeated letters.
-  Touching or rearranging the row clears the highlight.
+- Solves confirm for 320 ms, then the existing letters move up and resize into
+  the next rung while new letters drop onto the end with a small bounce.
+  The transition lasts 420 ms; multiple added letters are slightly staggered.
+  Rearranging, Shuffle, and Hint pause during the transition. Progress saves
+  before the motion finishes, and automatic cascades wait until after landing,
+  followed by a 180 ms pause. The final rung goes straight to completion.
   The system reduced-motion setting disables these delays, animated scrolling,
   and confetti.
 - Hints appear only when requested, in a compact popup for one possible answer.
@@ -147,8 +150,10 @@ direct daily entry and return home, deterministic selection, midnight and resume
 isolated saves, completion credit after replay, reset, malformed saves and routes,
 spoiler-free sharing, copy and failure feedback, and small-screen/large-text
 daily and completion layouts. Active-tile regressions verify that letter text is
-rendered and visible, not only stored in game state. Highlight tests include duplicate new letters
-and reduced motion; instruction tests cover learning and Help on later visits.
+rendered and visible, not only stored in game state. Transition tests cover
+movement and shrinking, duplicate and multiple added letters, input blocking,
+mid-flight navigation, rotation, automatic cascades, and reduced motion.
+Instruction tests cover learning and Help on later visits.
 
 Model tests cover saved progress, completion counts, reset, next-level selection
 across difficulties, the 50-to-100-level unlock, trie entries, and restored

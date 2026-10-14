@@ -6,6 +6,7 @@ import 'package:anagram_ladder/components/customReorderableDragStartListener.dar
 import 'package:anagram_ladder/components/fixedLetterRow.dart';
 import 'package:anagram_ladder/components/hintDialog.dart';
 import 'package:anagram_ladder/components/letterBoxDimensions.dart';
+import 'package:anagram_ladder/components/rungTransition.dart';
 import 'package:anagram_ladder/components/winningPopup.dart';
 import 'package:anagram_ladder/components/dailyResultCard.dart';
 import 'package:anagram_ladder/models/dailyChallenge.dart';
@@ -21,7 +22,6 @@ import 'package:provider/provider.dart';
 class LevelPage extends StatefulWidget {
   static const solveDuration = Duration(milliseconds: 320);
   static const cascadeDelay = Duration(milliseconds: 180);
-  static const newLetterDuration = Duration(milliseconds: 700);
   final int world;
   final int level;
   final DailyChallenge? daily;
@@ -37,20 +37,26 @@ class LevelPage extends StatefulWidget {
   State<LevelPage> createState() => _LevelPageState();
 }
 
-class _LevelPageState extends State<LevelPage> {
+class _LevelPageState extends State<LevelPage>
+    with SingleTickerProviderStateMixin {
   static final _moveLeftAction = CustomSemanticsAction(label: 'Move left');
   static final _moveRightAction = CustomSemanticsAction(label: 'Move right');
   List<LadderLevel> _levels = [];
   List<List<String>> _filledLetters = [];
   int _currentRung = 0;
   int? _selectedLetter;
-  Set<int> _newLetterIndices = {};
   bool _wasPlayed = true;
   bool _levelComplete = false;
   bool _showWinningView = false;
   bool _showInstructions = true;
   Object? _loadError;
   final _activeLettersKey = GlobalKey();
+  final _boardLayerKey = GlobalKey();
+  late final AnimationController _rungController;
+  Rect? _flightFrom;
+  Rect? _flightTo;
+  int _existingLetterCount = 0;
+  Size? _viewportSize;
   Timer? _completionTimer;
   Timer? _cascadeTimer;
   Duration get _solveDuration => MediaQuery.disableAnimationsOf(context)
@@ -61,15 +67,32 @@ class _LevelPageState extends State<LevelPage> {
       : LevelPage.cascadeDelay;
 
   bool get isWon => _levels.isNotEmpty && _currentRung >= _levels.length;
+  bool get _rungInFlight => _flightFrom != null;
   LadderLevel get currentLevel => _levels[_currentRung];
   List<String> get activeLetters => _filledLetters[_currentRung];
 
   @override
   void initState() {
     super.initState();
+    _rungController =
+        AnimationController(vsync: this, duration: RungTransition.duration)
+          ..addStatusListener((status) {
+            if (status == AnimationStatus.completed) _finishRungTransition();
+          });
     final game = context.read<GameState>();
     _showInstructions = !game.controlsLearned;
     _loadLevel();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final size = MediaQuery.sizeOf(context);
+    if (_rungInFlight &&
+        (MediaQuery.disableAnimationsOf(context) || _viewportSize != size)) {
+      _rungController.value = 1;
+    }
+    _viewportSize = size;
   }
 
   Future<void> _loadLevel() async {
@@ -133,6 +156,7 @@ class _LevelPageState extends State<LevelPage> {
   void dispose() {
     _completionTimer?.cancel();
     _cascadeTimer?.cancel();
+    _rungController.dispose();
     super.dispose();
   }
 
@@ -154,10 +178,12 @@ class _LevelPageState extends State<LevelPage> {
   void _resetLevel() {
     _completionTimer?.cancel();
     _cascadeTimer?.cancel();
+    _rungController.reset();
     setState(() {
       _currentRung = 0;
       _selectedLetter = null;
-      _newLetterIndices = {};
+      _flightFrom = null;
+      _flightTo = null;
       _wasPlayed = true;
       _levelComplete = false;
       _showWinningView = false;
@@ -271,55 +297,72 @@ class _LevelPageState extends State<LevelPage> {
               constraints.maxWidth - LetterBoxDimensions.horizontalPadding * 2,
         );
         return SingleChildScrollView(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: constraints.maxHeight),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(
-                  maxWidth:
-                      LetterBoxDimensions.MaxBoardWidth +
-                      LetterBoxDimensions.horizontalPadding * 2,
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: LetterBoxDimensions.horizontalPadding,
-                    vertical: 16,
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text(
-                        isWon
-                            ? 'Ladder complete'
-                            : 'Rung ${_currentRung + 1} of ${_levels.length}',
-                        style: Theme.of(context).textTheme.titleMedium,
+          physics: _rungInFlight ? const NeverScrollableScrollPhysics() : null,
+          child: Stack(
+            key: _boardLayerKey,
+            children: [
+              ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      maxWidth:
+                          LetterBoxDimensions.MaxBoardWidth +
+                          LetterBoxDimensions.horizontalPadding * 2,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: LetterBoxDimensions.horizontalPadding,
+                        vertical: 16,
                       ),
-                      const SizedBox(height: 10),
-                      LinearProgressIndicator(
-                        value:
-                            min(_currentRung, _levels.length) / _levels.length,
-                        semanticsLabel:
-                            'Ladder progress, $_currentRung of '
-                            '${_levels.length} rungs solved',
-                        borderRadius: BorderRadius.circular(4),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            isWon
+                                ? 'Ladder complete'
+                                : 'Rung ${_currentRung + 1} of ${_levels.length}',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: 10),
+                          LinearProgressIndicator(
+                            value:
+                                min(_currentRung, _levels.length) /
+                                _levels.length,
+                            semanticsLabel:
+                                'Ladder progress, $_currentRung of '
+                                '${_levels.length} rungs solved',
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          const SizedBox(height: 24),
+                          for (var rung = _levels.length - 1; rung >= 0; rung--)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 6),
+                              child: !isWon && rung == _currentRung
+                                  ? _activeRow(context)
+                                  : FixedLetterRow(
+                                      _filledLetters[rung],
+                                      dimensions,
+                                    ),
+                            ),
+                        ],
                       ),
-                      const SizedBox(height: 24),
-                      for (var rung = _levels.length - 1; rung >= 0; rung--)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 6),
-                          child: !isWon && rung == _currentRung
-                              ? _activeRow(context)
-                              : FixedLetterRow(
-                                  _filledLetters[rung],
-                                  dimensions,
-                                ),
-                        ),
-                    ],
+                    ),
                   ),
                 ),
               ),
-            ),
+              if (_rungInFlight)
+                Positioned.fill(
+                  child: RungTransition(
+                    animation: _rungController,
+                    from: _flightFrom!,
+                    to: _flightTo ?? _flightFrom!,
+                    letters: activeLetters,
+                    existingCount: _existingLetterCount,
+                  ),
+                ),
+            ],
           ),
         );
       },
@@ -357,34 +400,44 @@ class _LevelPageState extends State<LevelPage> {
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
               ),
-              Center(
-                child: SizedBox(
-                  key: _activeLettersKey,
-                  width: activeLetters.length * dimensions.boxWidth,
-                  height: max(64, dimensions.boxHeight),
-                  child: ReorderableListView(
-                    scrollDirection: Axis.horizontal,
-                    physics: const NeverScrollableScrollPhysics(),
-                    buildDefaultDragHandles: false,
-                    onReorderItem: _moveLetter,
-                    proxyDecorator: (child, index, animation) => Material(
-                      elevation: 6,
-                      color: Colors.transparent,
-                      borderRadius: BorderRadius.circular(12),
-                      child: child,
-                    ),
-                    children: [
-                      for (var index = 0; index < activeLetters.length; index++)
-                        SizedBox(
-                          key: ValueKey(index),
-                          width: dimensions.boxWidth,
-                          child: CustomReorderableDragStartListener(
-                            index: index,
-                            draggingEnabled: !_levelComplete,
-                            child: _letterTile(context, index, dimensions),
-                          ),
+              IgnorePointer(
+                ignoring: _rungInFlight,
+                child: Opacity(
+                  opacity: _rungInFlight ? 0 : 1,
+                  child: Center(
+                    child: SizedBox(
+                      key: _activeLettersKey,
+                      width: activeLetters.length * dimensions.boxWidth,
+                      height: max(64, dimensions.boxHeight),
+                      child: ReorderableListView(
+                        scrollDirection: Axis.horizontal,
+                        physics: const NeverScrollableScrollPhysics(),
+                        buildDefaultDragHandles: false,
+                        onReorderItem: _moveLetter,
+                        proxyDecorator: (child, index, animation) => Material(
+                          elevation: 6,
+                          color: Colors.transparent,
+                          borderRadius: BorderRadius.circular(12),
+                          child: child,
                         ),
-                    ],
+                        children: [
+                          for (
+                            var index = 0;
+                            index < activeLetters.length;
+                            index++
+                          )
+                            SizedBox(
+                              key: ValueKey(index),
+                              width: dimensions.boxWidth,
+                              child: CustomReorderableDragStartListener(
+                                index: index,
+                                draggingEnabled: !_levelComplete,
+                                child: _letterTile(context, index, dimensions),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -397,12 +450,11 @@ class _LevelPageState extends State<LevelPage> {
                       spacing: 16,
                       children: [
                         TextButton.icon(
-                          onPressed: _levelComplete
+                          onPressed: _levelComplete || _rungInFlight
                               ? null
                               : () {
                                   setState(() {
                                     _selectedLetter = null;
-                                    _newLetterIndices = {};
                                     activeLetters.shuffle();
                                   });
                                   _checkActiveRow();
@@ -411,7 +463,7 @@ class _LevelPageState extends State<LevelPage> {
                           label: const Text('Shuffle'),
                         ),
                         TextButton.icon(
-                          onPressed: _levelComplete
+                          onPressed: _levelComplete || _rungInFlight
                               ? null
                               : () => HintDialog.show(
                                   context,
@@ -447,14 +499,14 @@ class _LevelPageState extends State<LevelPage> {
   ) {
     final colors = Theme.of(context).colorScheme;
     final selected = index == _selectedLetter;
+    final busy = _levelComplete || _rungInFlight;
     void select() {
-      if (_levelComplete) return;
+      if (busy) return;
       if (_selectedLetter != null && !selected) {
         _moveLetter(_selectedLetter!, index);
       } else {
         setState(() {
           _selectedLetter = selected ? null : index;
-          _newLetterIndices = {};
         });
         if (context.read<GameState>().hapticsEnabled)
           HapticFeedback.selectionClick();
@@ -463,14 +515,14 @@ class _LevelPageState extends State<LevelPage> {
 
     return Semantics(
       key: ValueKey('letter-$index'),
-      button: !_levelComplete,
+      button: !busy,
       selected: selected,
       label:
           'Letter ${activeLetters[index]}, '
           'position ${index + 1} of ${activeLetters.length}',
       hint: 'Select a letter, then its new position, or use the move actions.',
-      onTap: _levelComplete ? null : select,
-      customSemanticsActions: _levelComplete
+      onTap: busy ? null : select,
+      customSemanticsActions: busy
           ? null
           : {
               if (index > 0)
@@ -481,52 +533,26 @@ class _LevelPageState extends State<LevelPage> {
       child: ExcludeSemantics(
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: _levelComplete ? null : select,
-          child: TweenAnimationBuilder<double>(
-            key: ValueKey(
-              'new-letter-$_currentRung-$index-'
-              '${_newLetterIndices.contains(index)}',
-            ),
-            tween: Tween(
-              begin:
-                  _newLetterIndices.contains(index) &&
-                      !MediaQuery.disableAnimationsOf(context)
-                  ? 1.0
-                  : 0.0,
-              end: 0.0,
-            ),
-            duration: MediaQuery.disableAnimationsOf(context)
-                ? Duration.zero
-                : LevelPage.newLetterDuration,
-            builder: (context, highlight, child) => AnimatedContainer(
-              duration: _solveDuration,
-              margin: const EdgeInsets.all(1),
-              padding: const EdgeInsets.all(2),
-              decoration: BoxDecoration(
+          onTap: busy ? null : select,
+          child: AnimatedContainer(
+            duration: _solveDuration,
+            margin: const EdgeInsets.all(1),
+            padding: const EdgeInsets.all(2),
+            decoration: BoxDecoration(
+              color: _levelComplete
+                  ? const Color(0xFF256144)
+                  : selected
+                  ? colors.primaryContainer
+                  : colors.surfaceContainerLowest,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
                 color: _levelComplete
                     ? const Color(0xFF256144)
                     : selected
-                    ? colors.primaryContainer
-                    : Color.lerp(
-                        colors.surfaceContainerLowest,
-                        colors.primaryContainer,
-                        highlight,
-                      ),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: _levelComplete
-                      ? const Color(0xFF256144)
-                      : selected
-                      ? colors.primary
-                      : Color.lerp(
-                          colors.outlineVariant,
-                          colors.primary,
-                          highlight,
-                        )!,
-                  width: selected ? 2 : 1 + highlight,
-                ),
+                    ? colors.primary
+                    : colors.outlineVariant,
+                width: selected ? 2 : 1,
               ),
-              child: child,
             ),
             child: Center(
               child: FittedBox(
@@ -549,11 +575,10 @@ class _LevelPageState extends State<LevelPage> {
   }
 
   void _moveLetter(int oldIndex, int newIndex) {
-    if (_levelComplete || oldIndex == newIndex) return;
+    if (_levelComplete || _rungInFlight || oldIndex == newIndex) return;
     _cascadeTimer?.cancel();
     setState(() {
       _selectedLetter = null;
-      _newLetterIndices = {};
       _showInstructions = false;
       activeLetters.insert(newIndex, activeLetters.removeAt(oldIndex));
     });
@@ -579,7 +604,7 @@ class _LevelPageState extends State<LevelPage> {
   }
 
   void _checkActiveRow({bool delayed = false}) {
-    if (_levelComplete || isWon) return;
+    if (_levelComplete || _rungInFlight || isWon) return;
     _persistState();
     if (!currentLevel.words.contains(activeLetters.join())) return;
     if (delayed) {
@@ -594,19 +619,20 @@ class _LevelPageState extends State<LevelPage> {
     _completionTimer = Timer(_solveDuration, () {
       if (!mounted) return;
       final solved = List<String>.of(activeLetters);
+      final from =
+          !MediaQuery.disableAnimationsOf(context) &&
+              _currentRung + 1 < _levels.length
+          ? _activeLettersBounds()
+          : null;
+      if (from != null) _rungController.reset();
       setState(() {
         _levelComplete = false;
         _selectedLetter = null;
         _currentRung++;
         if (!isWon) {
-          _newLetterIndices = {
-            for (
-              var index = solved.length;
-              index < solved.length + currentLevel.lettersToAdd.length;
-              index++
-            )
-              index,
-          };
+          _existingLetterCount = solved.length;
+          _flightFrom = from;
+          _flightTo = null;
           _filledLetters[_currentRung] = solved
             ..addAll(currentLevel.lettersToAdd);
         }
@@ -616,10 +642,52 @@ class _LevelPageState extends State<LevelPage> {
           if (saved && mounted) setState(() => _showWinningView = true);
         });
       } else {
-        _checkActiveRow(delayed: true);
+        if (_rungInFlight) {
+          _persistState();
+          _startRungTransition();
+        } else {
+          _checkActiveRow(delayed: true);
+        }
         _scrollToActiveRow();
       }
     });
+  }
+
+  Rect? _activeLettersBounds() {
+    final row = _activeLettersKey.currentContext?.findRenderObject();
+    final layer = _boardLayerKey.currentContext?.findRenderObject();
+    if (row is! RenderBox ||
+        layer is! RenderBox ||
+        !row.hasSize ||
+        !layer.hasSize) {
+      debugPrint('Rung transition skipped: the letter row is not laid out.');
+      return null;
+    }
+    // Both endpoints scroll with the board rather than the screen.
+    return row.localToGlobal(Offset.zero, ancestor: layer) & row.size;
+  }
+
+  void _startRungTransition() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_rungInFlight) return;
+      final target = _activeLettersBounds();
+      if (target == null) {
+        _rungController.value = 1;
+        return;
+      }
+      setState(() => _flightTo = target);
+      _rungController.forward();
+    });
+  }
+
+  void _finishRungTransition() {
+    if (!mounted || !_rungInFlight) return;
+    setState(() {
+      _flightFrom = null;
+      _flightTo = null;
+    });
+    _checkActiveRow(delayed: true);
+    _scrollToActiveRow();
   }
 
   Future<bool> _persistState() async {

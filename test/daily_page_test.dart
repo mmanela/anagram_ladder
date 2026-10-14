@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:anagram_ladder/anagram/ladderLevel.dart';
 import 'package:anagram_ladder/components/dailyResultCard.dart';
+import 'package:anagram_ladder/components/rungTransition.dart';
 import 'package:anagram_ladder/models/dailyChallenge.dart';
 import 'package:anagram_ladder/models/gameState.dart';
 import 'package:anagram_ladder/models/gameStore.dart';
@@ -274,6 +275,45 @@ void main() {
     await tester.pageBack();
     await tester.pumpAndSettle();
     expect(find.text('Play'), findsOneWidget);
+  });
+
+  testWidgets('leaving during the letter drop preserves daily progress', (
+    tester,
+  ) async {
+    setViewport(tester, const Size(400, 800));
+    final game = await startDailyAt(tester, DateTime(2026, 10, 15));
+    final day = game.today;
+    final ladder = await game.getLevelOrLoad(day.world, day.level);
+    final rungs = ladder.getBottomUp();
+    final solution = rungs.first.words.firstWhere(
+      (word) => !rungs.first.words.contains(word.substring(1) + word[0]),
+    );
+    await game.persistDailyState(
+      day,
+      LevelState(day.world, day.level, 0, 0, rungs.length, [
+        (solution.substring(1) + solution[0]).split(''),
+        for (final rung in rungs.skip(1)) List.filled(rung.letterCount, ''),
+      ]),
+    );
+    await showDaily(tester);
+    tester
+        .widget<ReorderableListView>(find.byType(ReorderableListView))
+        .onReorderItem!(solution.length - 1, 0);
+    await tester.pump(LevelPage.solveDuration);
+    await tester.pump();
+    expect(find.byType(RungTransition), findsOneWidget);
+    expect(game.getDailyState(day).currentRung, 1);
+    expect(game.getDailyState(day).levelLetters.first.join(), solution);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.byType(HomePage), findsOneWidget);
+    expect(game.getDailyState(day).currentRung, 1);
+    await showDaily(tester);
+    expect(game.getDailyState(day).currentRung, greaterThanOrEqualTo(1));
+    expect(game.getDailyState(day).levelLetters.first.join(), solution);
+    expect(game.getLevelState(day.world, day.level).isEmpty, isTrue);
+    expect(game.resumeLevel, isNull);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('daily completion is remembered and replay keeps credit', (

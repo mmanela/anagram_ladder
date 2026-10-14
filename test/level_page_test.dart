@@ -1,6 +1,7 @@
 import 'package:anagram_ladder/anagram/ladderLevel.dart';
 import 'package:anagram_ladder/anagram/hintWordSelector.dart';
 import 'package:anagram_ladder/components/hintDialog.dart';
+import 'package:anagram_ladder/components/rungTransition.dart';
 import 'package:anagram_ladder/components/winningPopup.dart';
 import 'package:anagram_ladder/models/gameState.dart';
 import 'package:anagram_ladder/models/gameStore.dart';
@@ -123,6 +124,12 @@ Future<void> arrangeWord(
 Future<void> finishAnimation(WidgetTester tester) async {
   await tester.pump(LevelPage.solveDuration);
   await tester.pump();
+  if (find.byType(RungTransition).evaluate().isNotEmpty) {
+    await tester.pump(
+      RungTransition.duration + const Duration(milliseconds: 1),
+    );
+    await tester.pump();
+  }
 }
 
 void expectVisibleActiveLetters(WidgetTester tester, List<String> letters) {
@@ -182,6 +189,12 @@ void main() {
     expect(state.getLevelState(6, 1).currentRung, 1);
     expect(state.getLevelState(6, 1).levelLetters[1].join(), 'stare');
 
+    expect(find.byType(RungTransition), findsOneWidget);
+    await tester.pump(
+      RungTransition.duration + const Duration(milliseconds: 1),
+    );
+    await tester.pump();
+    expect(find.byType(RungTransition), findsNothing);
     await tester.pump(const Duration(milliseconds: 179));
     expect(state.getLevelState(6, 1).currentRung, 1);
     await tester.pump(const Duration(milliseconds: 1));
@@ -218,9 +231,9 @@ void main() {
   });
 
   testWidgets(
-    'only newly appended letters pulse, including duplicate letters',
+    'solved letters climb and shrink before a duplicate new letter drops',
     (tester) async {
-      setViewport(tester, const Size(900, 1200));
+      setViewport(tester, const Size(320, 700));
       final bottom = LadderLevel.bottom(['a', 'r', 's', 't'], 1, ['star']);
       final middle = LadderLevel(
         ['a', 'a', 'r', 's', 't'],
@@ -236,41 +249,67 @@ void main() {
       );
       final state = await openFixture(tester, ladder: ladder);
       await arrangeWord(tester, state, 'star');
-      await finishAnimation(tester);
+      final source = tester.getRect(find.byKey(const ValueKey('letter-0')));
+      await tester.pump(LevelPage.solveDuration);
+      await tester.pump();
       expect(state.getLevelState(6, 1).levelLetters[1].join(), 'stara');
-      expectVisibleActiveLetters(tester, 'stara'.split(''));
-      final pulse = tester.widget<TweenAnimationBuilder<double>>(
-        find.byKey(const ValueKey('new-letter-1-4-true')),
-      );
-      expect(pulse.tween.begin, 1);
-      expect(pulse.tween.end, 0);
-      expect(pulse.duration, LevelPage.newLetterDuration);
-      for (var index = 0; index < 4; index++) {
-        final existing = tester.widget<TweenAnimationBuilder<double>>(
-          find.byKey(ValueKey('new-letter-1-$index-false')),
-        );
-        expect(existing.tween.begin, 0);
-      }
-      final tile = find.descendant(
-        of: find.byKey(const ValueKey('letter-4')),
-        matching: find.byType(AnimatedContainer),
-      );
-      final colors = Theme.of(tester.element(tile)).colorScheme;
+      final flight = tester.widget<RungTransition>(find.byType(RungTransition));
+      expect(flight.to.top, lessThan(flight.from.top));
+      expect(flight.to.width / 5, lessThan(flight.from.width / 4));
+      final moving = find.byKey(const ValueKey('rung-flight-letter-0'));
+      final added = find.byKey(const ValueKey('rung-flight-letter-4'));
+      expect(tester.getRect(moving).top, closeTo(source.top, 0.001));
+      expect(tester.getRect(moving).width, closeTo(source.width, 0.001));
       expect(
-        (tester.widget<AnimatedContainer>(tile).decoration as BoxDecoration)
-            .color,
-        colors.primaryContainer,
+        tester
+            .widget<Opacity>(
+              find.descendant(of: added, matching: find.byType(Opacity)),
+            )
+            .opacity,
+        0,
       );
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(tester.getRect(moving).top, lessThan(source.top));
+      expect(tester.getRect(moving).width, lessThan(source.width));
       expect(
-        (tester.widget<AnimatedContainer>(tile).decoration as BoxDecoration)
-            .color,
-        colors.surfaceContainerLowest,
+        tester
+            .widget<Opacity>(
+              find.descendant(of: added, matching: find.byType(Opacity)),
+            )
+            .opacity,
+        0,
       );
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(
+        tester
+            .widget<Opacity>(
+              find.descendant(of: added, matching: find.byType(Opacity)),
+            )
+            .opacity,
+        1,
+      );
+      expect(tester.getRect(added).top, lessThan(tester.getRect(moving).top));
+      expect(
+        find.descendant(of: added, matching: find.text('a')),
+        findsOneWidget,
+      );
+      tester
+          .widget<ReorderableListView>(find.byType(ReorderableListView))
+          .onReorderItem!(0, 1);
+      expect(state.getLevelState(6, 1).levelLetters[1].join(), 'stara');
+      expect(
+        tester
+            .widget<TextButton>(find.widgetWithText(TextButton, 'Shuffle'))
+            .onPressed,
+        isNull,
+      );
+      await tester.pump(const Duration(milliseconds: 221));
+      await tester.pump();
+      expect(find.byType(RungTransition), findsNothing);
       expectVisibleActiveLetters(tester, 'stara'.split(''));
       await tester.tap(find.byKey(const ValueKey('letter-0')));
       await tester.pump();
-      expect(find.byKey(const ValueKey('new-letter-1-4-true')), findsNothing);
+      expectVisibleActiveLetters(tester, 'stara'.split(''));
       expect(tester.takeException(), isNull);
     },
   );
@@ -546,7 +585,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('new-letter highlights respect reduced motion', (tester) async {
+  testWidgets('rung transitions respect reduced motion', (tester) async {
     setViewport(tester, const Size(900, 1200));
     tester.platformDispatcher.accessibilityFeaturesTestValue =
         FakeAccessibilityFeatures(disableAnimations: true);
@@ -554,17 +593,42 @@ void main() {
     final state = await openFixture(tester, middleWords: ['rates']);
     await arrangeWord(tester, state, 'star');
     await tester.pumpAndSettle();
-    final pulse = tester.widget<TweenAnimationBuilder<double>>(
-      find.byKey(const ValueKey('new-letter-1-4-true')),
-    );
-    expect(pulse.duration, Duration.zero);
-    expect(pulse.tween.begin, 0);
+    expect(find.byType(RungTransition), findsNothing);
     expectVisibleActiveLetters(
       tester,
       state.getLevelState(6, 1).levelLetters[1],
     );
     expect(tester.takeException(), isNull);
   });
+
+  for (final reducedMotion in [false, true]) {
+    testWidgets(
+      'an active transition settles safely after '
+      '${reducedMotion ? 'enabling reduced motion' : 'rotating the screen'}',
+      (tester) async {
+        setViewport(tester, const Size(320, 700));
+        final state = await openFixture(tester, middleWords: ['rates']);
+        await arrangeWord(tester, state, 'star');
+        await tester.pump(LevelPage.solveDuration);
+        await tester.pump();
+        expect(find.byType(RungTransition), findsOneWidget);
+        if (reducedMotion) {
+          tester.platformDispatcher.accessibilityFeaturesTestValue =
+              FakeAccessibilityFeatures(disableAnimations: true);
+          addTearDown(
+            tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+          );
+        } else {
+          tester.view.physicalSize = const Size(700, 320);
+        }
+        await tester.pumpAndSettle();
+        expect(find.byType(RungTransition), findsNothing);
+        expect(state.getLevelState(6, 1).currentRung, 1);
+        expectVisibleActiveLetters(tester, 'stare'.split(''));
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
 
   testWidgets('hint popup size does not grow with the number of answers', (
     tester,
