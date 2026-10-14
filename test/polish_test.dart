@@ -146,7 +146,7 @@ void main() {
       final rect = tester.getRect(letter);
       expect(rect.left, greaterThanOrEqualTo(0));
       expect(rect.right, lessThanOrEqualTo(320));
-      expect(rect.width, closeTo(30.2, 0.001));
+      expect(rect.width, closeTo(29, 0.001));
       expect(rect.height, greaterThanOrEqualTo(64));
       expect(letter.hitTestable(), findsOneWidget);
     }
@@ -199,7 +199,15 @@ void main() {
         await tester.pumpAndSettle();
 
         final boardWidth = (size.width - sideInset * 2 - 16).clamp(0, 700);
-        final expectedWidth = ((boardWidth - 2) / letterCount).clamp(0, 72);
+        final expectedWidth = ((boardWidth - 14) / letterCount).clamp(0, 72);
+        final card = tester.getRect(
+          find
+              .ancestor(
+                of: find.byType(ReorderableListView),
+                matching: find.byType(Container),
+              )
+              .first,
+        );
         final first = find.byKey(const ValueKey('letter-0'));
         final last = find.byKey(ValueKey('letter-${letterCount - 1}'));
         for (var index = 0; index < letterCount; index++) {
@@ -216,6 +224,12 @@ void main() {
           expect(
             tester.getSize(paintedTile).width,
             closeTo(expectedWidth - 2, 0.001),
+          );
+          final paintedRect = tester.getRect(paintedTile);
+          expect(paintedRect.left - card.left, greaterThanOrEqualTo(8 - 0.001));
+          expect(
+            card.right - paintedRect.right,
+            greaterThanOrEqualTo(8 - 0.001),
           );
           expect(letter.hitTestable(), findsOneWidget);
         }

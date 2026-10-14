@@ -329,6 +329,7 @@ class _LevelPageState extends State<LevelPage> {
   Widget _activeRow(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6),
       decoration: BoxDecoration(
         color: colors.surfaceContainerLowest,
         border: Border.all(color: colors.primary.withValues(alpha: 0.35)),
