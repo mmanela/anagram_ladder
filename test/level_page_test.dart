@@ -51,11 +51,12 @@ Future<FixtureGameState> openFixture(
   bool completed = false,
   String finalWord = 'stared',
   List<String> middleWords = const ['stare'],
+  LadderLevel? ladder,
 }) async {
   final store = GameStore();
   final state = FixtureGameState(
     store,
-    testLadder(finalWord: finalWord, middleWords: middleWords),
+    ladder ?? testLadder(finalWord: finalWord, middleWords: middleWords),
   );
   final navigation = GameRouteNavigator();
   addTearDown(state.dispose);
@@ -179,6 +180,62 @@ void main() {
     expect(find.byType(WinningPopup), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'only newly appended letters pulse, including duplicate letters',
+    (tester) async {
+      setViewport(tester, const Size(900, 1200));
+      final bottom = LadderLevel.bottom(['a', 'r', 's', 't'], 1, ['star']);
+      final middle = LadderLevel(
+        ['a', 'a', 'r', 's', 't'],
+        1,
+        bottom,
+        ['taras'],
+      );
+      final ladder = LadderLevel(
+        ['a', 'a', 'd', 'r', 's', 't'],
+        1,
+        middle,
+        ['strada'],
+      );
+      final state = await openFixture(tester, ladder: ladder);
+      await arrangeWord(tester, state, 'star');
+      await finishAnimation(tester);
+      expect(state.getLevelState(6, 1).levelLetters[1].join(), 'stara');
+      final pulse = tester.widget<TweenAnimationBuilder<double>>(
+        find.byKey(const ValueKey('new-letter-1-4-true')),
+      );
+      expect(pulse.tween.begin, 1);
+      expect(pulse.tween.end, 0);
+      expect(pulse.duration, LevelPage.newLetterDuration);
+      for (var index = 0; index < 4; index++) {
+        final existing = tester.widget<TweenAnimationBuilder<double>>(
+          find.byKey(ValueKey('new-letter-1-$index-false')),
+        );
+        expect(existing.tween.begin, 0);
+      }
+      final tile = find.descendant(
+        of: find.byKey(const ValueKey('letter-4')),
+        matching: find.byType(AnimatedContainer),
+      );
+      final colors = Theme.of(tester.element(tile)).colorScheme;
+      expect(
+        (tester.widget<AnimatedContainer>(tile).decoration as BoxDecoration)
+            .color,
+        colors.primaryContainer,
+      );
+      await tester.pumpAndSettle();
+      expect(
+        (tester.widget<AnimatedContainer>(tile).decoration as BoxDecoration)
+            .color,
+        colors.surfaceContainerLowest,
+      );
+      await tester.tap(find.byKey(const ValueKey('letter-0')));
+      await tester.pump();
+      expect(find.byKey(const ValueKey('new-letter-1-4-true')), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('tap-to-move selects, moves, and persists without dragging', (
     tester,
@@ -421,6 +478,22 @@ void main() {
     await tester.tap(find.text('Close'));
     await tester.pumpAndSettle();
     expect(find.byType(HintDialog), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('new-letter highlights respect reduced motion', (tester) async {
+    setViewport(tester, const Size(900, 1200));
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        FakeAccessibilityFeatures(disableAnimations: true);
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+    final state = await openFixture(tester, middleWords: ['rates']);
+    await arrangeWord(tester, state, 'star');
+    await tester.pumpAndSettle();
+    final pulse = tester.widget<TweenAnimationBuilder<double>>(
+      find.byKey(const ValueKey('new-letter-1-4-true')),
+    );
+    expect(pulse.duration, Duration.zero);
+    expect(pulse.tween.begin, 0);
     expect(tester.takeException(), isNull);
   });
 

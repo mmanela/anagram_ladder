@@ -17,6 +17,7 @@ import 'package:provider/provider.dart';
 class LevelPage extends StatefulWidget {
   static const solveDuration = Duration(milliseconds: 320);
   static const cascadeDelay = Duration(milliseconds: 180);
+  static const newLetterDuration = Duration(milliseconds: 700);
   final int world;
   final int level;
 
@@ -33,6 +34,7 @@ class _LevelPageState extends State<LevelPage> {
   List<List<String>> _filledLetters = [];
   int _currentRung = 0;
   int? _selectedLetter;
+  Set<int> _newLetterIndices = {};
   bool _wasPlayed = true;
   bool _levelComplete = false;
   bool _showWinningView = false;
@@ -101,6 +103,7 @@ class _LevelPageState extends State<LevelPage> {
     setState(() {
       _currentRung = 0;
       _selectedLetter = null;
+      _newLetterIndices = {};
       _wasPlayed = true;
       _levelComplete = false;
       _showWinningView = false;
@@ -281,6 +284,7 @@ class _LevelPageState extends State<LevelPage> {
                               : () {
                                   setState(() {
                                     _selectedLetter = null;
+                                    _newLetterIndices = {};
                                     activeLetters.shuffle();
                                   });
                                   _checkActiveRow();
@@ -329,7 +333,10 @@ class _LevelPageState extends State<LevelPage> {
       if (_selectedLetter != null && !selected) {
         _moveLetter(_selectedLetter!, index);
       } else {
-        setState(() => _selectedLetter = selected ? null : index);
+        setState(() {
+          _selectedLetter = selected ? null : index;
+          _newLetterIndices = {};
+        });
         if (context.read<GameState>().hapticsEnabled)
           HapticFeedback.selectionClick();
       }
@@ -356,24 +363,49 @@ class _LevelPageState extends State<LevelPage> {
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: _levelComplete ? null : select,
-          child: AnimatedContainer(
-            duration: _solveDuration,
-            margin: const EdgeInsets.all(1),
-            padding: const EdgeInsets.all(2),
-            decoration: BoxDecoration(
-              color: _levelComplete
-                  ? const Color(0xFF256144)
-                  : selected
-                  ? colors.primaryContainer
-                  : colors.surfaceContainerLowest,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
+          child: TweenAnimationBuilder<double>(
+            key: ValueKey(
+              'new-letter-$_currentRung-$index-'
+              '${_newLetterIndices.contains(index)}',
+            ),
+            tween: Tween(
+              begin:
+                  _newLetterIndices.contains(index) &&
+                      !MediaQuery.disableAnimationsOf(context)
+                  ? 1.0
+                  : 0.0,
+              end: 0.0,
+            ),
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : LevelPage.newLetterDuration,
+            builder: (context, highlight, child) => AnimatedContainer(
+              duration: _solveDuration,
+              margin: const EdgeInsets.all(1),
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
                 color: _levelComplete
                     ? const Color(0xFF256144)
                     : selected
-                    ? colors.primary
-                    : colors.outlineVariant,
-                width: selected ? 2 : 1,
+                    ? colors.primaryContainer
+                    : Color.lerp(
+                        colors.surfaceContainerLowest,
+                        colors.primaryContainer,
+                        highlight,
+                      ),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: _levelComplete
+                      ? const Color(0xFF256144)
+                      : selected
+                      ? colors.primary
+                      : Color.lerp(
+                          colors.outlineVariant,
+                          colors.primary,
+                          highlight,
+                        )!,
+                  width: selected ? 2 : 1 + highlight,
+                ),
               ),
             ),
             child: Center(
@@ -401,6 +433,7 @@ class _LevelPageState extends State<LevelPage> {
     _cascadeTimer?.cancel();
     setState(() {
       _selectedLetter = null;
+      _newLetterIndices = {};
       activeLetters.insert(newIndex, activeLetters.removeAt(oldIndex));
     });
     if (!currentLevel.words.contains(activeLetters.join()) &&
@@ -431,6 +464,14 @@ class _LevelPageState extends State<LevelPage> {
         _selectedLetter = null;
         _currentRung++;
         if (!isWon) {
+          _newLetterIndices = {
+            for (
+              var index = solved.length;
+              index < solved.length + currentLevel.lettersToAdd.length;
+              index++
+            )
+              index,
+          };
           _filledLetters[_currentRung] = solved
             ..addAll(currentLevel.lettersToAdd);
         }

@@ -29,6 +29,8 @@ puzzles, free hints, level access, and v5 saved-progress format.
   swipes scroll the board instead of starting a drag. Screen readers expose
   letter positions and Move left / Move right actions.
 - Solves animate for 320 ms, with a 180 ms pause before automatic cascades.
+  Newly added letters briefly highlight for 700 ms, including repeated letters.
+  Touching or rearranging the row clears the highlight.
   The system reduced-motion setting disables these delays, animated scrolling,
   and confetti.
 - Hints appear only when requested, in a compact popup for one possible answer.
