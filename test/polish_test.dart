@@ -5,6 +5,7 @@ import 'package:anagram_ladder/navigation/gameRoutePath.dart';
 import 'package:anagram_ladder/pages/levelPage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -15,6 +16,16 @@ import 'widget_test.dart' show startGame;
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
+    final wasFatal = WidgetController.hitTestWarningShouldBeFatal;
+    WidgetController.hitTestWarningShouldBeFatal = true;
+    addTearDown(() => WidgetController.hitTestWarningShouldBeFatal = wasFatal);
+    PackageInfo.setMockInitialValues(
+      appName: 'Anagram Ladder',
+      packageName: 'com.farblondzshet.anagramladder',
+      version: '1.0',
+      buildNumber: '1',
+      buildSignature: '',
+    );
   });
 
   testWidgets('Continue returns directly to the saved letter arrangement', (
@@ -80,5 +91,49 @@ void main() {
     } finally {
       semantics.dispose();
     }
+  }, variant: TargetPlatformVariant.only(TargetPlatform.android));
+
+  testWidgets('Settings toggles haptics and confirms reset at large text', (
+    tester,
+  ) async {
+    setViewport(tester, const Size(320, 568), textScale: 3);
+    await startGame(tester);
+    final context = tester.element(find.text('Play'));
+    final state = context.read<GameState>();
+    await state.persistLevelState(await completedLevel(state, 6, 1));
+    context.read<GameRouteNavigator>().goto(GameRoutePath.settings());
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byType(Switch));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(Switch));
+    await tester.pumpAndSettle();
+    expect(state.hapticsEnabled, isFalse);
+    await tester.scrollUntilVisible(
+      find.text('Reset progress'),
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Reset progress'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(state.getLevelState(6, 1).isWon, isTrue);
+    await tester.tap(find.text('Reset progress'));
+    await tester.pumpAndSettle();
+    await tester.runAsync(() async {
+      await tester.tap(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.text('Reset progress'),
+        ),
+      );
+    });
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(state.getLevelState(6, 1).isEmpty, isTrue);
+    expect(state.resumeLevel, isNull);
+    expect(state.hapticsEnabled, isFalse);
+    expect(tester.takeException(), isNull);
   }, variant: TargetPlatformVariant.only(TargetPlatform.android));
 }

@@ -22,17 +22,18 @@ class CustomReorderableDragStartListener extends ReorderableDragStartListener {
 
   @override
   MultiDragGestureRecognizer createRecognizer() {
-    return DelayedMultiDragGestureRecognizer(
-        delay: const Duration(milliseconds: 1), debugOwner: this);
+    return HorizontalMultiDragGestureRecognizer(debugOwner: this);
   }
 
   void _startDragging(BuildContext context, PointerDownEvent event) {
-    final SliverReorderableListState? list =
-        SliverReorderableList.maybeOf(context);
+    final SliverReorderableListState? list = SliverReorderableList.maybeOf(
+      context,
+    );
     list?.startItemDragReorder(
       index: index,
       event: event,
-      recognizer: createRecognizer(),
+      recognizer: createRecognizer()
+        ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context),
     );
   }
 }

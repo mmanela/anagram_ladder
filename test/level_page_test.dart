@@ -8,6 +8,7 @@ import 'package:anagram_ladder/navigation/gameRouteNavigator.dart';
 import 'package:anagram_ladder/pages/levelPage.dart';
 import 'package:anagram_ladder/pages/payPage.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -175,6 +176,109 @@ void main() {
     expect(state.getLevelState(6, 1).isWon, isTrue);
     expect(find.byType(WinningPopup), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('tap-to-move selects, moves, and persists without dragging', (
+    tester,
+  ) async {
+    setViewport(tester, const Size(900, 1200), textScale: 0.75);
+    final state = await openFixture(tester);
+    await tester.tap(find.byKey(const ValueKey('letter-0')));
+    await tester.pump();
+    expect(
+      tester
+          .widget<Semantics>(find.byKey(const ValueKey('letter-0')))
+          .properties
+          .selected,
+      isTrue,
+    );
+    await tester.tap(find.byKey(const ValueKey('letter-1')));
+    await tester.pumpAndSettle();
+    expect(state.getLevelState(6, 1).levelLetters.first.join(), 'atrs');
+    expect(
+      tester
+          .widget<Semantics>(find.byKey(const ValueKey('letter-1')))
+          .properties
+          .selected,
+      isFalse,
+    );
+  });
+
+  testWidgets('horizontal tile dragging still reorders and saves letters', (
+    tester,
+  ) async {
+    setViewport(tester, const Size(900, 1200), textScale: 0.75);
+    final state = await openFixture(tester);
+    final first = find.byKey(const ValueKey('letter-0'));
+    final third = find.byKey(const ValueKey('letter-2'));
+    final destination = tester.getCenter(third);
+    final start = tester.getCenter(first);
+    final gesture = await tester.startGesture(start);
+    for (var step = 1; step <= 6; step++) {
+      await gesture.moveTo(Offset.lerp(start, destination, step / 6)!);
+      await tester.pump(const Duration(milliseconds: 60));
+    }
+    await gesture.up();
+    await tester.pumpAndSettle();
+    expect(state.getLevelState(6, 1).levelLetters.first.join(), 'arts');
+  });
+
+  testWidgets('vertical drags on a tile scroll without rearranging letters', (
+    tester,
+  ) async {
+    setViewport(tester, const Size(320, 568));
+    final state = await openFixture(tester);
+    final scrollable = tester.state<ScrollableState>(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is Scrollable && widget.axisDirection == AxisDirection.down,
+      ),
+    );
+    final before = scrollable.position.pixels;
+    expect(before, greaterThan(0));
+    await tester.drag(
+      find.byKey(const ValueKey('letter-0')),
+      const Offset(0, 120),
+    );
+    await tester.pumpAndSettle();
+    expect(scrollable.position.pixels, lessThan(before));
+    expect(state.getLevelState(6, 1).levelLetters.first.join(), 'tars');
+    expect(state.getLevelState(6, 1).currentRung, 0);
+  });
+
+  testWidgets('accessible move actions work and haptics can be disabled', (
+    tester,
+  ) async {
+    final feedback = <MethodCall>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'HapticFeedback.vibrate') feedback.add(call);
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+    setViewport(tester, const Size(900, 1200), textScale: 0.75);
+    final state = await openFixture(tester);
+    await state.setHapticsEnabled(false);
+    final tile = tester.widget<Semantics>(
+      find.byKey(const ValueKey('letter-0')),
+    );
+    final actions = tile.properties.customSemanticsActions!;
+    expect(actions.keys.map((action) => action.label), ['Move right']);
+    actions.values.single();
+    await tester.pump();
+    expect(state.getLevelState(6, 1).levelLetters.first.join(), 'atrs');
+    expect(feedback, isEmpty);
+    await state.setHapticsEnabled(true);
+    await tester.tap(find.byKey(const ValueKey('letter-0')));
+    await tester.pump();
+    expect(feedback.single.arguments, 'HapticFeedbackType.selectionClick');
   });
 
   testWidgets(

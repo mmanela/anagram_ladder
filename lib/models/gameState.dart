@@ -41,10 +41,21 @@ class GameState with ChangeNotifier {
     9: "Expert",
     10: "Genius",
   };
-  static final worldIds = IntegerRange(AnagramLadderBuilder.SeedWordLengthMin,
-          AnagramLadderBuilder.SeedWordLengthMax + 1)
-      .toList();
+  static final worldIds = IntegerRange(
+    AnagramLadderBuilder.SeedWordLengthMin,
+    AnagramLadderBuilder.SeedWordLengthMax + 1,
+  ).toList();
   bool isLoaded = false;
+
+  bool get hapticsEnabled =>
+      _sharedPreferences?.getBool('hapticsEnabled') ?? true;
+
+  Future<void> setHapticsEnabled(bool enabled) async {
+    final preferences = _sharedPreferences;
+    if (preferences == null) throw StateError('Game is not loaded');
+    await preferences.setBool('hapticsEnabled', enabled);
+    notifyListeners();
+  }
 
   GameRoutePath? get resumeLevel {
     final world = _sharedPreferences?.getInt('lastPlayedWorld');
@@ -137,16 +148,20 @@ class GameState with ChangeNotifier {
       }
     }
 
-    _worldCompletionInfo[worldNum] =
-        WorldCompletionInfo(worldLevelCount, completes);
+    _worldCompletionInfo[worldNum] = WorldCompletionInfo(
+      worldLevelCount,
+      completes,
+    );
   }
 
   WorldCompletionInfo getWorldCompletionInfo(int worldNum) {
     return _worldCompletionInfo[worldNum] ?? WorldCompletionInfo.empty();
   }
 
-  Future<List<LadderLevel>> getWorldOrLoad(int length,
-      {bool force = false}) async {
+  Future<List<LadderLevel>> getWorldOrLoad(
+    int length, {
+    bool force = false,
+  }) async {
     if (_ladders.containsKey(length) && !force) {
       // No need to load more than once
       return Future.value(_ladders[length]);
@@ -174,7 +189,10 @@ class GameState with ChangeNotifier {
   LevelState getLevelState(int world, int level) {
     if (_sharedPreferences != null) {
       return LevelState.fromSharedPreferences(
-          world, level, _sharedPreferences!);
+        world,
+        level,
+        _sharedPreferences!,
+      );
     }
 
     return LevelState.empty();
@@ -233,11 +251,17 @@ class GameState with ChangeNotifier {
   }
 
   Future reset() async {
-    if (_sharedPreferences != null) {
-      await _sharedPreferences!.clear();
+    final preferences = _sharedPreferences;
+    if (preferences != null) {
+      for (final key in preferences.getKeys()) {
+        if (key.startsWith('v5_') ||
+            key == 'lastPlayedWorld' ||
+            key == 'lastPlayedLevel') {
+          await preferences.remove(key);
+        }
+      }
     }
 
-    // Reinitialtion all
     await initialize();
   }
 }

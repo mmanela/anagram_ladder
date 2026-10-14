@@ -10,6 +10,8 @@ import 'package:anagram_ladder/components/winningPopup.dart';
 import 'package:anagram_ladder/models/gameState.dart';
 import 'package:anagram_ladder/models/levelState.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 class LevelPage extends StatefulWidget {
@@ -25,9 +27,12 @@ class LevelPage extends StatefulWidget {
 }
 
 class _LevelPageState extends State<LevelPage> {
+  static final _moveLeftAction = CustomSemanticsAction(label: 'Move left');
+  static final _moveRightAction = CustomSemanticsAction(label: 'Move right');
   List<LadderLevel> _levels = [];
   List<List<String>> _filledLetters = [];
   int _currentRung = 0;
+  int? _selectedLetter;
   bool _wasPlayed = true;
   bool _levelComplete = false;
   bool _showWinningView = false;
@@ -95,6 +100,7 @@ class _LevelPageState extends State<LevelPage> {
     _cascadeTimer?.cancel();
     setState(() {
       _currentRung = 0;
+      _selectedLetter = null;
       _wasPlayed = true;
       _levelComplete = false;
       _showWinningView = false;
@@ -231,38 +237,7 @@ class _LevelPageState extends State<LevelPage> {
                       child: CustomReorderableDragStartListener(
                         index: index,
                         draggingEnabled: !_levelComplete,
-                        child: AnimatedContainer(
-                          duration: _solveDuration,
-                          margin: const EdgeInsets.all(3),
-                          padding: const EdgeInsets.all(2),
-                          decoration: BoxDecoration(
-                            color: _levelComplete
-                                ? const Color(0xFF256144)
-                                : colors.surfaceContainerLowest,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: _levelComplete
-                                  ? const Color(0xFF256144)
-                                  : colors.outlineVariant,
-                            ),
-                          ),
-                          child: Center(
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: Text(
-                                activeLetters[index],
-                                textScaler: dimensions.textScaler,
-                                style: TextStyle(
-                                  fontSize: dimensions.boxFontSize,
-                                  fontWeight: FontWeight.w700,
-                                  color: _levelComplete
-                                      ? Colors.white
-                                      : colors.onSurface,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
+                        child: _letterTile(context, index, dimensions),
                       ),
                     ),
                 ],
@@ -281,7 +256,10 @@ class _LevelPageState extends State<LevelPage> {
                       onPressed: _levelComplete
                           ? null
                           : () {
-                              setState(() => activeLetters.shuffle());
+                              setState(() {
+                                _selectedLetter = null;
+                                activeLetters.shuffle();
+                              });
                               _checkActiveRow();
                             },
                       icon: const Icon(Icons.shuffle),
@@ -295,9 +273,11 @@ class _LevelPageState extends State<LevelPage> {
                     ),
                   ],
                 ),
-                const Text(
-                  'Drag the letters to make a word. '
-                  'Each solved word adds new letters.',
+                Text(
+                  _selectedLetter == null
+                      ? 'Drag to reorder, or tap a letter then its new position. '
+                            'Each solved word adds new letters.'
+                      : 'Tap another position to move this letter there.',
                   textAlign: TextAlign.center,
                 ),
               ],
@@ -308,12 +288,96 @@ class _LevelPageState extends State<LevelPage> {
     );
   }
 
+  Widget _letterTile(
+    BuildContext context,
+    int index,
+    LetterBoxDimensions dimensions,
+  ) {
+    final colors = Theme.of(context).colorScheme;
+    final selected = index == _selectedLetter;
+    void select() {
+      if (_levelComplete) return;
+      if (_selectedLetter != null && !selected) {
+        _moveLetter(_selectedLetter!, index);
+      } else {
+        setState(() => _selectedLetter = selected ? null : index);
+        if (context.read<GameState>().hapticsEnabled)
+          HapticFeedback.selectionClick();
+      }
+    }
+
+    return Semantics(
+      key: ValueKey('letter-$index'),
+      button: !_levelComplete,
+      selected: selected,
+      label:
+          'Letter ${activeLetters[index]}, '
+          'position ${index + 1} of ${activeLetters.length}',
+      hint: 'Select a letter, then its new position, or use the move actions.',
+      onTap: _levelComplete ? null : select,
+      customSemanticsActions: _levelComplete
+          ? null
+          : {
+              if (index > 0)
+                _moveLeftAction: () => _moveLetter(index, index - 1),
+              if (index < activeLetters.length - 1)
+                _moveRightAction: () => _moveLetter(index, index + 1),
+            },
+      child: ExcludeSemantics(
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: _levelComplete ? null : select,
+          child: AnimatedContainer(
+            duration: _solveDuration,
+            margin: const EdgeInsets.all(3),
+            padding: const EdgeInsets.all(2),
+            decoration: BoxDecoration(
+              color: _levelComplete
+                  ? const Color(0xFF256144)
+                  : selected
+                  ? colors.primaryContainer
+                  : colors.surfaceContainerLowest,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: _levelComplete
+                    ? const Color(0xFF256144)
+                    : selected
+                    ? colors.primary
+                    : colors.outlineVariant,
+                width: selected ? 2 : 1,
+              ),
+            ),
+            child: Center(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  activeLetters[index],
+                  textScaler: dimensions.textScaler,
+                  style: TextStyle(
+                    fontSize: dimensions.boxFontSize,
+                    fontWeight: FontWeight.w700,
+                    color: _levelComplete ? Colors.white : colors.onSurface,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   void _moveLetter(int oldIndex, int newIndex) {
     if (_levelComplete || oldIndex == newIndex) return;
     _cascadeTimer?.cancel();
-    setState(
-      () => activeLetters.insert(newIndex, activeLetters.removeAt(oldIndex)),
-    );
+    setState(() {
+      _selectedLetter = null;
+      activeLetters.insert(newIndex, activeLetters.removeAt(oldIndex));
+    });
+    if (!currentLevel.words.contains(activeLetters.join()) &&
+        context.read<GameState>().hapticsEnabled) {
+      HapticFeedback.selectionClick();
+    }
     _checkActiveRow();
   }
 
@@ -329,11 +393,13 @@ class _LevelPageState extends State<LevelPage> {
       return;
     }
     setState(() => _levelComplete = true);
+    if (context.read<GameState>().hapticsEnabled) HapticFeedback.lightImpact();
     _completionTimer = Timer(_solveDuration, () {
       if (!mounted) return;
       final solved = List<String>.of(activeLetters);
       setState(() {
         _levelComplete = false;
+        _selectedLetter = null;
         _currentRung++;
         if (!isWon) {
           _filledLetters[_currentRung] = solved

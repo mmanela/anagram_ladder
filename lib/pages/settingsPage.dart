@@ -1,166 +1,159 @@
-
-import 'package:anagram_ladder/components/gameMenuButton.dart';
 import 'package:anagram_ladder/models/gameState.dart';
-import 'package:anagram_ladder/utils/screen.dart';
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 
 class SettingsPage extends StatefulWidget {
-  SettingsPage();
-
   @override
-  State<StatefulWidget> createState() => _SettingsPageState();
+  State<SettingsPage> createState() => _SettingsPageState();
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  String _versionText = "";
+  String _versionText = '';
 
   @override
   void initState() {
     super.initState();
-    PackageInfo.fromPlatform().then((PackageInfo packageInfo) {
-      String appName = packageInfo.appName;
-      String version = packageInfo.version;
-      String buildNumber = packageInfo.buildNumber;
-      setState(() {
-        _versionText = "$appName v$version+$buildNumber";
-      });
-    });
+    PackageInfo.fromPlatform()
+        .then((info) {
+          if (mounted) {
+            setState(
+              () => _versionText =
+                  '${info.appName} v${info.version}+${info.buildNumber}',
+            );
+          }
+        })
+        .catchError((Object error) {
+          debugPrint('Settings: could not load version: $error');
+          if (mounted)
+            setState(() => _versionText = 'Version information unavailable');
+        });
   }
 
-  static const String feedbackEmailUrl =
-      "mailto:AnagramLadder@gmail.com?subject=Feedback";
-  Widget _resetButton(BuildContext context) {
-    final textScaler = MediaQuery.textScalerOf(context)
-        .clamp(maxScaleFactor: 1.2);
-    return Container(
-      padding: EdgeInsets.only(bottom: 0),
-      child: GameMenuButton(
-        onPressed: () {
-          _showClearDataDialog();
-        },
-        child: Text("Reset Game", textScaler: textScaler),
+  void _showError(Object error) {
+    debugPrint('Settings: $error');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('That could not be completed. Please try again.'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _resetProgress() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        scrollable: true,
+        title: const Text('Reset all ladder progress?'),
+        content: const Text(
+          'This removes all solved words and saved ladder progress. '
+          'It cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Reset progress'),
+          ),
+        ],
       ),
     );
-  }
-
-  Widget _sendFeedbackButton(BuildContext context) {
-    final textScaler = MediaQuery.textScalerOf(context)
-        .clamp(maxScaleFactor: 1.2);
-    return Container(
-      padding: EdgeInsets.only(bottom: 0),
-      child: GameMenuButton(
-        onPressed: () async {
-          await launchUrl(Uri.parse(feedbackEmailUrl));
-        },
-        child: Text("Send Feedback", textScaler: textScaler),
-      ),
-    );
-  }
-
-  Widget _versionInfo(BuildContext context) {
-    final textScaler = MediaQuery.textScalerOf(context)
-        .clamp(maxScaleFactor: 1.4);
-    return Container(
-      padding: EdgeInsets.fromLTRB(0, 10, 0, 10),
-      child: Text(_versionText, textScaler: textScaler),
-    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await context.read<GameState>().reset();
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Game progress reset')));
+      }
+    } catch (error) {
+      _showError(error);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final game = context.watch<GameState>();
     return Scaffold(
-      appBar: AppBar(title: Text("Settings")),
+      appBar: AppBar(title: const Text('Settings')),
       body: SafeArea(
-        child: Column(
-          children: [
-            Center(child: _versionInfo(context)),
-            Expanded(
-              child: Container(
-                padding: EdgeInsets.fromLTRB(0, 0, 0, 0),
-                alignment: Alignment.topCenter,
-                child: _gridView(context),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _gridView(BuildContext context) {
-    final isPortrait = shouldTreatAsPortrait(context);
-    return GridView.count(
-      crossAxisCount: isPortrait ? 1 : 2,
-      children: <Widget>[
-        Center(child: _resetButton(context)),
-        Center(child: _sendFeedbackButton(context)),
-      ],
-      childAspectRatio: 3,
-      padding: EdgeInsets.zero,
-    );
-  }
-
-  Future<void> _showClearDataDialog() async {
-    return showDialog<void>(
-      context: context,
-      barrierDismissible: true,
-      builder: (BuildContext context) {
-        final textScaler = MediaQuery.textScalerOf(context)
-            .clamp(maxScaleFactor: 1.4);
-        return AlertDialog(
-          content: SingleChildScrollView(
-            child: ListBody(
-              children: <Widget>[
-                Text(
-                  'Warning!',
-                  textScaler: textScaler,
-                  style: TextStyle(
-                    color: Colors.red,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 30,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 720),
+            child: ListView(
+              padding: const EdgeInsets.all(20),
+              children: [
+                Card(
+                  child: SwitchListTile.adaptive(
+                    contentPadding: const EdgeInsets.all(16),
+                    title: const Text('Haptic feedback'),
+                    subtitle: const Text(
+                      'A subtle tick for letter moves and solved words.',
+                    ),
+                    value: game.hapticsEnabled,
+                    onChanged: (value) async {
+                      try {
+                        await game.setHapticsEnabled(value);
+                      } catch (error) {
+                        _showError(error);
+                      }
+                    },
                   ),
                 ),
+                const SizedBox(height: 16),
+                Card(
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.all(16),
+                    leading: const Icon(Icons.mail_outline),
+                    title: const Text('Send feedback'),
+                    subtitle: const Text(
+                      'Ideas, tricky words, or something not working?',
+                    ),
+                    onTap: () async {
+                      try {
+                        final opened = await launchUrl(
+                          Uri(
+                            scheme: 'mailto',
+                            path: 'AnagramLadder@gmail.com',
+                            query: 'subject=Feedback',
+                          ),
+                        );
+                        if (!opened)
+                          _showError('No email application is available');
+                      } catch (error) {
+                        _showError(error);
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(height: 32),
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Theme.of(context).colorScheme.error,
+                  ),
+                  onPressed: _resetProgress,
+                  icon: const Icon(Icons.restart_alt),
+                  label: const Text('Reset progress'),
+                ),
+                const SizedBox(height: 24),
                 Text(
-                  'Are you sure you want to reset all game data?',
-                  textScaler: textScaler,
+                  _versionText,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
             ),
           ),
-          actions: <Widget>[
-            OutlinedButton(
-              child: Text(
-                'Cancel',
-                textScaler: textScaler,
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-            SizedBox(width: 5),
-            OutlinedButton(
-              style: OutlinedButton.styleFrom(backgroundColor: Colors.red),
-              child: Text(
-                'Yes, I am sure',
-                textScaler: textScaler,
-                style: TextStyle(color: Colors.white),
-              ),
-              onPressed: () async {
-                final gameState = context.read<GameState>();
-                await gameState.reset();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Game data reset')),
-                );
-                Navigator.of(context).pop();
-              },
-            ),
-          ],
-        );
-      },
+        ),
+      ),
     );
   }
 }

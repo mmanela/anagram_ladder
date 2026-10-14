@@ -90,6 +90,19 @@ void main() {
     expect(state.resumeLevel?.level, 1);
   });
 
+  test('haptic preference survives loading saved progress again', () async {
+    expect(state.hapticsEnabled, isTrue);
+    await state.setHapticsEnabled(false);
+    await state.initialize(force: true);
+    expect(state.hapticsEnabled, isFalse);
+    expect(
+      (await SharedPreferences.getInstance()).getBool('hapticsEnabled'),
+      isFalse,
+    );
+    await state.reset();
+    expect(state.hapticsEnabled, isFalse);
+  });
+
   test(
     'progress survives reload and completion counts reflect a restart',
     () async {
