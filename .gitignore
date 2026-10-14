@@ -33,6 +33,7 @@
 /coverage/
 
 # Web related
+/tools/icons/node_modules/
 
 # Symbolication related
 app.*.symbols

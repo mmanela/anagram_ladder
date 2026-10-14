@@ -211,6 +211,28 @@ should not be forced forward using dependency overrides.
 - The main game is stored in the lib folder
 - The tools for pre-processing word files is stored in the tools folder
 
+## App icon
+
+The launcher icon is a warm-white ladder on a purple gradient, with no letters.
+`assets/app_icon.svg` is the full-bleed source for the iOS catalog, Android legacy
+launcher sizes, web icons and favicon, and the Google Play listing icon.
+Rounded corners are applied by the platform, not baked into the image.
+In-game logos and the Google Play feature graphic are separate and unchanged.
+
+Regenerate the PNGs with Node.js 20 or later:
+
+```sh
+npm ci --prefix tools/icons
+npm run generate --prefix tools/icons
+```
+
+The generator checks dimensions and opacity, including the 1024px App Store
+icon. Android 8 and later use the matching adaptive vector layers in
+`android/app/src/main/res/drawable/ic_launcher_*.xml`; Android 13 and later also
+have a monochrome layer for themed icons. Keep these vectors in sync when
+editing the SVG. Adaptive foreground artwork is scaled into the safe zone so
+launcher masks do not clip the ladder.
+
 ## Try it out
 
 [<img src="https://matthewmanela.com/wp-content/uploads/2021/06/download-on-the-app-store-1.png" alt="ios" style="width:200px;"/>](https://apps.apple.com/us/app/anagram-ladder/id1566804631)
