@@ -4,6 +4,7 @@ import 'package:anagram_ladder/navigation/gameRouterDelegate.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+
 import 'models/gameStore.dart';
 import 'navigation/gameRouteNavigator.dart';
 
@@ -43,35 +44,82 @@ class _AnagramLadderAppState extends State<AnagramLadderApp> {
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,
       DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight
+      DeviceOrientation.landscapeRight,
     ]);
     _routerDelegate = GameRouterDelegate(_navigator, _gameState, _gameStore);
   }
 
   final _theme = ThemeData(
-      useMaterial3: true,
-      brightness: Brightness.light,
-      pageTransitionsTheme: PageTransitionsTheme(),
-      elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(textStyle: TextStyle(fontSize: 25))),
-      appBarTheme:
-          AppBarTheme(backgroundColor: Colors.deepPurple, foregroundColor: Colors.white),
-      colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple));
+    useMaterial3: true,
+    brightness: Brightness.light,
+    scaffoldBackgroundColor: const Color(0xFFFAF8F4),
+    primaryColor: const Color(0xFF6544B5),
+    pageTransitionsTheme: PageTransitionsTheme(),
+    textTheme: ThemeData.light().textTheme.apply(
+      bodyColor: const Color(0xFF292437),
+      displayColor: const Color(0xFF292437),
+    ),
+    cardTheme: CardThemeData(
+      color: Colors.white,
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: const BorderSide(color: Color(0xFFE8E2EE)),
+      ),
+    ),
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        minimumSize: const Size(48, 52),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        elevation: 0,
+        minimumSize: const Size(48, 48),
+        textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size(48, 48),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+    ),
+    appBarTheme: AppBarTheme(
+      backgroundColor: const Color(0xFFFAF8F4),
+      foregroundColor: const Color(0xFF292437),
+      surfaceTintColor: Colors.transparent,
+      centerTitle: false,
+      elevation: 0,
+    ),
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: const Color(0xFF6544B5),
+      primary: const Color(0xFF6544B5),
+      surface: const Color(0xFFFAF8F4),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
-        providers: [
-          ChangeNotifierProvider.value(value: _navigator),
-          ChangeNotifierProvider.value(value: _gameStore),
-          ChangeNotifierProvider.value(value: _gameState),
-        ],
-        child: MaterialApp.router(
-          title: 'Anagram Ladder',
-          theme: _theme,
-          debugShowCheckedModeBanner: false,
-          routerDelegate: _routerDelegate!,
-          routeInformationParser: _routeInformationParser,
-        ));
+      providers: [
+        ChangeNotifierProvider.value(value: _navigator),
+        ChangeNotifierProvider.value(value: _gameStore),
+        ChangeNotifierProvider.value(value: _gameState),
+      ],
+      child: MaterialApp.router(
+        title: 'Anagram Ladder',
+        theme: _theme,
+        debugShowCheckedModeBanner: false,
+        routerDelegate: _routerDelegate!,
+        routeInformationParser: _routeInformationParser,
+      ),
+    );
   }
 }
