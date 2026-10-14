@@ -57,7 +57,7 @@ class HomePage extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Rearrange the letters. Find a word. Climb to the next one.',
+                    'Use every letter to make a word on each rung.',
                     style: Theme.of(context).textTheme.bodyLarge,
                   ),
                   const SizedBox(height: 32),

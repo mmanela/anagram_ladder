@@ -75,6 +75,11 @@ void main() {
   ) async {
     await startGame(tester);
     expect(find.text('Rearrange.\nSolve. Climb.'), findsOneWidget);
+    expect(find.textContaining('Rearrange'), findsOneWidget);
+    expect(
+      find.text('Use every letter to make a word on each rung.'),
+      findsOneWidget,
+    );
     expect(find.text('One word.\nA little higher.'), findsNothing);
     final day = tester.element(find.text('Play')).read<GameState>().today;
     expect(find.text('${day.difficultyDescription}.'), findsOneWidget);
