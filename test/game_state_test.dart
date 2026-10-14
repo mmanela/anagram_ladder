@@ -64,6 +64,33 @@ void main() {
   });
 
   test(
+    'resume remembers the last ladder and supports older v5 saves',
+    () async {
+      expect(state.resumeLevel, isNull);
+      for (final world in [6, 7]) {
+        final progress = await completedLevel(state, world, 2);
+        progress.currentRung = 1;
+        await state.persistLevelState(progress);
+      }
+      expect(state.resumeLevel?.world, 7);
+      expect(state.resumeLevel?.level, 2);
+      await state.initialize(force: true);
+      expect(state.resumeLevel?.world, 7);
+      final preferences = await SharedPreferences.getInstance();
+      await preferences.remove('lastPlayedWorld');
+      await preferences.remove('lastPlayedLevel');
+      expect(state.resumeLevel?.world, 6);
+      expect(state.resumeLevel?.level, 2);
+    },
+  );
+
+  test('resume offers the next ladder after a completion', () async {
+    await state.persistLevelState(await completedLevel(state, 6, 50));
+    expect(state.resumeLevel?.world, 7);
+    expect(state.resumeLevel?.level, 1);
+  });
+
+  test(
     'progress survives reload and completion counts reflect a restart',
     () async {
       final progress = await completedLevel(state, 6, 1);

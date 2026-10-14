@@ -1,89 +1,134 @@
-
-import 'package:anagram_ladder/components/gameMenuButton.dart';
+import 'package:anagram_ladder/models/gameState.dart';
 import 'package:anagram_ladder/navigation/gameRouteNavigator.dart';
 import 'package:anagram_ladder/navigation/gameRoutePath.dart';
-import 'package:anagram_ladder/utils/screen.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-class HomePage extends StatefulWidget {
-  HomePage({Key? key}) : super(key: key);
+class HomePage extends StatelessWidget {
+  HomePage({super.key});
 
-  @override
-  _HomePageState createState() => _HomePageState();
-}
-
-class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
-    final isPortrait =
-        MediaQuery.of(context).orientation == Orientation.portrait;
-    final windowSize = MediaQuery.of(context).size;
+    final game = context.watch<GameState>();
+    final navigation = context.read<GameRouteNavigator>();
+    final resume = game.resumeLevel;
+    final progress = resume == null
+        ? null
+        : game.getLevelState(resume.world!, resume.level!);
+    final colors = Theme.of(context).colorScheme;
+
     return Scaffold(
       body: SafeArea(
         child: Center(
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(0, 5, 0, 10),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Hero(
-                  tag: "logo",
-                  child: ConstrainedBox(
-                    constraints: isPortrait
-                        ? BoxConstraints.loose(Size.fromWidth(windowSize.width))
-                        : BoxConstraints.loose(Size.fromHeight(150)),
-                    child: Image(image: AssetImage("assets/ag_logo_wide.png")),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.stairs_rounded,
+                        color: colors.primary,
+                        size: 44,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Anagram Ladder',
+                          style: Theme.of(context).textTheme.headlineSmall
+                              ?.copyWith(fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                SizedBox(height: 10),
-                Expanded(child: _gridView(context)),
-              ],
+                  const SizedBox(height: 48),
+                  Text(
+                    'One word.\nA little higher.',
+                    style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      height: 1.15,
+                      letterSpacing: -1,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Rearrange the letters. Find a word. Climb to the next one.',
+                    style: Theme.of(context).textTheme.bodyLarge,
+                  ),
+                  const SizedBox(height: 32),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            resume == null
+                                ? 'Your first ladder is waiting'
+                                : '${GameState.worldLabels[resume.world]}'
+                                      ' Ladder #${resume.level}',
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            progress == null || progress.isEmpty
+                                ? 'Choose a difficulty and take your time.'
+                                : '${progress.currentRung} of '
+                                      '${progress.rungCount} rungs solved. '
+                                      'Pick up where you left off.',
+                          ),
+                          const SizedBox(height: 20),
+                          FilledButton(
+                            onPressed: () => navigation.goto(
+                              resume ?? GameRoutePath.worldSet(),
+                            ),
+                            child: Text(resume == null ? 'Play' : 'Continue'),
+                          ),
+                          if (resume != null) ...[
+                            const SizedBox(height: 8),
+                            OutlinedButton(
+                              onPressed: () =>
+                                  navigation.goto(GameRoutePath.worldSet()),
+                              child: const Text('Choose a ladder'),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 8,
+                    children: [
+                      TextButton(
+                        onPressed: () => navigation.goto(GameRoutePath.about()),
+                        child: const Text('About'),
+                      ),
+                      TextButton(
+                        onPressed: () =>
+                            navigation.goto(GameRoutePath.settings()),
+                        child: const Text('Settings'),
+                      ),
+                      if (defaultTargetPlatform != TargetPlatform.android)
+                        TextButton(
+                          onPressed: () => navigation.goto(GameRoutePath.pay()),
+                          child: const Text('Store'),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       ),
     );
   }
-}
-
-Widget _gridView(BuildContext context) {
-  final textScaler = MediaQuery.textScalerOf(context)
-      .clamp(maxScaleFactor: 1.4);
-  final nav = context.read<GameRouteNavigator>();
-  final isPortrait = shouldTreatAsPortrait(context);
-  return GridView.count(
-    crossAxisCount: isPortrait ? 1 : 2,
-    children: <Widget>[
-      Center(
-        child: GameMenuButton(
-          onPressed: () => nav.goto(GameRoutePath.worldSet()),
-          child: Text("Play", textScaler: textScaler),
-        ),
-      ),
-      Center(
-        child: GameMenuButton(
-          onPressed: () => nav.goto(GameRoutePath.about()),
-          child: Text("About", textScaler: textScaler),
-        ),
-      ),
-      Center(
-        child: GameMenuButton(
-          onPressed: () => nav.goto(GameRoutePath.settings()),
-          child: Text("Settings", textScaler: textScaler),
-        ),
-      ),
-      if (defaultTargetPlatform != TargetPlatform.android)
-        Center(
-          child: GameMenuButton(
-            onPressed: () => nav.goto(GameRoutePath.pay()),
-            child: Text("Store", textScaler: textScaler),
-          ),
-        ),
-    ],
-    childAspectRatio: isBigScreen(context) ? 3 : 4,
-    padding: EdgeInsets.zero,
-  );
 }

@@ -46,6 +46,33 @@ class GameState with ChangeNotifier {
       .toList();
   bool isLoaded = false;
 
+  GameRoutePath? get resumeLevel {
+    final world = _sharedPreferences?.getInt('lastPlayedWorld');
+    final level = _sharedPreferences?.getInt('lastPlayedLevel');
+    if (worldIds.contains(world) &&
+        level != null &&
+        level >= 1 &&
+        level <= getWorldLevelCount(world!)) {
+      final saved = getLevelState(world, level);
+      if (!saved.isEmpty && !saved.isWon) {
+        return GameRoutePath.level(world, level);
+      }
+      final next = getNextUnfinishedLevel(world, level);
+      if (next != null) {
+        return next;
+      }
+    }
+    for (final world in worldIds) {
+      for (var level = 1; level <= getWorldLevelCount(world); level++) {
+        final saved = getLevelState(world, level);
+        if (!saved.isEmpty && !saved.isWon) {
+          return GameRoutePath.level(world, level);
+        }
+      }
+    }
+    return null;
+  }
+
   GameState(this.gameStore) {
     this.gameStore.addListener(_handleStoreChange);
     _setMaxLevelCount();
@@ -154,11 +181,21 @@ class GameState with ChangeNotifier {
   }
 
   Future persistLevelState(LevelState levelState) async {
+    final previous = getLevelState(levelState.world, levelState.level);
+    final previousResume = resumeLevel;
     if (_sharedPreferences != null) {
       await levelState.save(_sharedPreferences!);
+      await _sharedPreferences!.setInt('lastPlayedWorld', levelState.world);
+      await _sharedPreferences!.setInt('lastPlayedLevel', levelState.level);
     }
 
     _updateWorldCompletionPercentage(levelState.world);
+    if (previous.isEmpty ||
+        previous.currentRung != levelState.currentRung ||
+        previousResume?.world != levelState.world ||
+        previousResume?.level != levelState.level) {
+      notifyListeners();
+    }
   }
 
   bool isWorldDone(int world) {

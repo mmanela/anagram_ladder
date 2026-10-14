@@ -108,6 +108,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Play'), findsOneWidget);
 
+    await tester.ensureVisible(find.text('About'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('About'));
     await tester.pumpAndSettle();
     expect(find.text('What is Anagram Ladder?'), findsOneWidget);
