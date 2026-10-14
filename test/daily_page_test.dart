@@ -1,0 +1,297 @@
+import 'package:anagram_ladder/anagram/ladderLevel.dart';
+import 'package:anagram_ladder/components/dailyResultCard.dart';
+import 'package:anagram_ladder/models/dailyChallenge.dart';
+import 'package:anagram_ladder/models/gameState.dart';
+import 'package:anagram_ladder/models/levelState.dart';
+import 'package:anagram_ladder/navigation/gameRouteNavigator.dart';
+import 'package:anagram_ladder/navigation/gameRoutePath.dart';
+import 'package:anagram_ladder/pages/dailyPage.dart';
+import 'package:anagram_ladder/pages/levelPage.dart';
+import 'package:anagram_ladder/pages/unknownPage.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'level_page_test.dart' show setViewport;
+import 'widget_test.dart' show startGame;
+
+Future<void> showDaily(WidgetTester tester) async {
+  await tester.ensureVisible(find.text('Daily ladder'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Daily ladder'));
+  await tester.pumpAndSettle();
+  expect(find.byType(DailyPage), findsOneWidget);
+}
+
+Future<LadderLevel> seedDailyFinal(
+  GameState game,
+  DailyChallenge day, {
+  bool completed = false,
+}) async {
+  final ladder = await game.getLevelOrLoad(6, day.level);
+  final rungs = ladder.getBottomUp();
+  final solution = ladder.words.firstWhere(
+    (word) => !ladder.words.contains(word.substring(1) + word[0]),
+  );
+  await game.persistDailyState(
+    day,
+    LevelState(
+      6,
+      day.level,
+      completed ? 6 : 5,
+      completed ? rungs.length : rungs.length - 1,
+      rungs.length,
+      [
+        for (final rung in rungs.take(rungs.length - 1))
+          rung.words.first.split(''),
+        (completed ? solution : solution.substring(1) + solution[0]).split(''),
+      ],
+    ),
+  );
+  return ladder;
+}
+
+void main() {
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+    final wasFatal = WidgetController.hitTestWarningShouldBeFatal;
+    WidgetController.hitTestWarningShouldBeFatal = true;
+    addTearDown(() => WidgetController.hitTestWarningShouldBeFatal = wasFatal);
+  });
+
+  testWidgets(
+    'daily play resumes independently and Back returns to the daily page',
+    (tester) async {
+      setViewport(tester, const Size(400, 800));
+      await startGame(tester);
+      final context = tester.element(find.text('Play'));
+      final game = context.read<GameState>();
+      final navigation = context.read<GameRouteNavigator>();
+      await showDaily(tester);
+      await tester.tap(find.text('Play daily ladder'));
+      await tester.pumpAndSettle();
+      expect(find.byType(LevelPage), findsOneWidget);
+      final day = game.today;
+      final letters = List<String>.of(
+        game.getDailyState(day).levelLetters.first,
+      );
+      final bottom = (await game.getLevelOrLoad(6, day.level)).getBottom();
+      final move =
+          [
+            for (var from = 0; from < letters.length; from++)
+              for (var to = 0; to < letters.length; to++)
+                if (from != to) (from: from, to: to),
+          ].firstWhere((move) {
+            final moved = List.of(letters);
+            moved.insert(move.to, moved.removeAt(move.from));
+            return moved.join() != letters.join() &&
+                !bottom.words.contains(moved.join());
+          });
+      final expected = List.of(letters);
+      expected.insert(move.to, expected.removeAt(move.from));
+      final reorder = tester.widget<ReorderableListView>(
+        find.byType(ReorderableListView),
+      );
+      reorder.onReorderItem!(move.from, move.to);
+      await tester.pumpAndSettle();
+      final saved = game.getDailyState(day).levelLetters.first;
+      expect(saved, expected);
+      expect(game.getLevelState(6, day.level).isEmpty, isTrue);
+      expect(game.resumeLevel, isNull);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.byType(DailyPage), findsOneWidget);
+      expect(find.text('Continue daily ladder'), findsOneWidget);
+      await tester.tap(find.text('Continue daily ladder'));
+      await tester.pumpAndSettle();
+      expect(game.getDailyState(day).levelLetters.first, saved);
+      navigation.goto(GameRoutePath.daily());
+      await tester.pumpAndSettle();
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.text('Play'), findsOneWidget);
+    },
+  );
+
+  testWidgets('daily completion is remembered and replay keeps credit', (
+    tester,
+  ) async {
+    setViewport(tester, const Size(400, 800));
+    final semantics = tester.ensureSemantics();
+    try {
+      await startGame(tester);
+      final context = tester.element(find.text('Play'));
+      final game = context.read<GameState>();
+      final navigation = context.read<GameRouteNavigator>();
+      final day = game.today;
+      await seedDailyFinal(game, day);
+      navigation.goto(GameRoutePath.dailyLevel(day.dateKey));
+      await tester.pumpAndSettle();
+      tester
+          .widget<ReorderableListView>(find.byType(ReorderableListView))
+          .onReorderItem!(5, 0);
+      await tester.pumpAndSettle();
+      expect(find.byType(DailyResultCard), findsOneWidget);
+      expect(game.isDailyCompleted(day), isTrue);
+      expect(game.getWorldCompletionInfo(6).completedCount, 0);
+      await tester.ensureVisible(find.text('Replay'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Replay'));
+      await tester.pumpAndSettle();
+      expect(find.byType(DailyResultCard), findsNothing);
+      expect(game.getDailyState(day).currentRung, 0);
+      expect(game.isDailyCompleted(day), isTrue);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.text('Completed today'), findsOneWidget);
+      expect(find.byType(GridView), findsNothing);
+    } finally {
+      semantics.dispose();
+    }
+  });
+
+  testWidgets('future and unplayed past daily links cannot unlock puzzles', (
+    tester,
+  ) async {
+    await startGame(tester);
+    final context = tester.element(find.text('Play'));
+    final game = context.read<GameState>();
+    final navigation = context.read<GameRouteNavigator>();
+    for (final offset in [-1, 1]) {
+      final date = DailyChallenge(game.today.date.add(Duration(days: offset)));
+      navigation.goto(GameRoutePath.dailyLevel(date.dateKey));
+      await tester.pumpAndSettle();
+      expect(find.byType(UnknownPage), findsOneWidget);
+      expect(find.byType(LevelPage), findsNothing);
+    }
+  });
+
+  testWidgets('invalid daily progress is reported without overwriting it', (
+    tester,
+  ) async {
+    await startGame(tester);
+    final context = tester.element(find.text('Play'));
+    final game = context.read<GameState>();
+    final prefs = await SharedPreferences.getInstance();
+    final key = 'daily_v1_progress_${game.today.dateKey}';
+    await prefs.setString(key, '{"invalid":true}');
+    await showDaily(tester);
+    expect(
+      find.textContaining('Could not read your daily progress'),
+      findsOneWidget,
+    );
+    expect(find.text('Retry'), findsOneWidget);
+    expect(prefs.getString(key), '{"invalid":true}');
+    expect(tester.takeException(), isNull);
+  });
+
+  for (final (size, scale) in [
+    (const Size(320, 568), 3.0),
+    (const Size(568, 320), 1.0),
+  ]) {
+    testWidgets('daily page and result fit $size at ${scale}x text', (
+      tester,
+    ) async {
+      setViewport(tester, size, textScale: scale);
+      await startGame(tester);
+      final context = tester.element(find.text('Play'));
+      final game = context.read<GameState>();
+      await seedDailyFinal(game, game.today, completed: true);
+      context.read<GameRouteNavigator>().goto(GameRoutePath.daily());
+      await tester.pumpAndSettle();
+      expect(find.byType(GridView), findsNothing);
+      expect(find.byTooltip('Previous month'), findsNothing);
+      expect(find.textContaining('free Normal ladder'), findsNothing);
+      await tester.scrollUntilVisible(
+        find.text('View completed ladder'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('View completed ladder'));
+      await tester.pumpAndSettle();
+      expect(find.byType(DailyResultCard), findsOneWidget);
+      await tester.ensureVisible(find.text('Share result'));
+      await tester.pumpAndSettle();
+      expect(find.text('Share result').hitTestable(), findsOneWidget);
+      await tester.ensureVisible(find.text('Back to daily'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Back to daily'));
+      await tester.pumpAndSettle();
+      expect(find.byType(DailyPage), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets(
+    'sharing and copying use spoiler-free results and an iPad anchor',
+    (tester) async {
+      final calls = <MethodCall>[];
+      const share = MethodChannel('dev.fluttercommunity.plus/share');
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(share, (
+        call,
+      ) async {
+        calls.add(call);
+        return 'test.activity';
+      });
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') calls.add(call);
+          return null;
+        },
+      );
+      addTearDown(() {
+        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          share,
+          null,
+        );
+        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        );
+      });
+      final day = DailyChallenge(DateTime(2026, 10, 14));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: DailyResultCard(
+                challenge: day,
+                wordLengths: const [4, 5, 6],
+                onReplay: () {},
+                onBack: () {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Share result'));
+      await tester.pumpAndSettle();
+      final shared = calls.singleWhere((call) => call.method == 'share');
+      expect(shared.arguments['text'], day.shareText([4, 5, 6]));
+      expect(shared.arguments['originWidth'], greaterThan(0));
+      expect(shared.arguments['originHeight'], greaterThan(0));
+      await tester.tap(find.text('Copy result'));
+      await tester.pumpAndSettle();
+      final copied = calls.singleWhere(
+        (call) => call.method == 'Clipboard.setData',
+      );
+      expect(copied.arguments['text'], shared.arguments['text']);
+      expect(find.text('Result copied'), findsOneWidget);
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        share,
+        (_) async => throw PlatformException(code: 'share-failed'),
+      );
+      await tester.tap(find.text('Share result'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Could not share. You can copy the result instead.'),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+}

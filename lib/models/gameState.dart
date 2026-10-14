@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:anagram_ladder/anagram/anagramBuilder.dart';
@@ -6,8 +7,10 @@ import 'package:anagram_ladder/anagram/anagramLadderData.dart';
 import 'package:anagram_ladder/anagram/ladderLevel.dart';
 import 'package:anagram_ladder/models/gameStore.dart';
 import 'package:anagram_ladder/models/levelState.dart';
+import 'package:anagram_ladder/models/dailyChallenge.dart';
 import 'package:anagram_ladder/navigation/gameRoutePath.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:more/collection.dart';
 
@@ -21,7 +24,7 @@ class WorldCompletionInfo {
   double get percent => completedCount / levelCount;
 }
 
-class GameState with ChangeNotifier {
+class GameState with ChangeNotifier, WidgetsBindingObserver {
   final GameStore gameStore;
   SharedPreferences? _sharedPreferences;
   final Map<int, List<LadderLevel>> _ladders = Map();
@@ -47,6 +50,91 @@ class GameState with ChangeNotifier {
   ).toList();
   bool isLoaded = false;
   bool _disposed = false;
+  final DateTime Function() _now;
+  late DailyChallenge _today;
+  Timer? _dailyTimer;
+
+  DailyChallenge get today => _today;
+
+  void refreshDaily() {
+    if (_disposed) return;
+    final now = _now();
+    final today = DailyChallenge(now);
+    final changed = today.dateKey != _today.dateKey;
+    _today = today;
+    _dailyTimer?.cancel();
+    final midnight = now.isUtc
+        ? DateTime.utc(now.year, now.month, now.day + 1)
+        : DateTime(now.year, now.month, now.day + 1);
+    _dailyTimer = Timer(midnight.difference(now), refreshDaily);
+    if (changed) notifyListeners();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) refreshDaily();
+  }
+
+  bool hasDailyProgress(DailyChallenge challenge) =>
+      _sharedPreferences?.containsKey(
+        'daily_v1_progress_${challenge.dateKey}',
+      ) ??
+      false;
+
+  bool isDailyCompleted(DailyChallenge challenge) =>
+      _sharedPreferences?.getBool('daily_v1_completed_${challenge.dateKey}') ??
+      false;
+
+  LevelState getDailyState(DailyChallenge challenge) {
+    final raw = _sharedPreferences?.getString(
+      'daily_v1_progress_${challenge.dateKey}',
+    );
+    if (raw == null) return LevelState.empty();
+    final json = jsonDecode(raw);
+    if (json is! Map<String, dynamic>) {
+      throw const FormatException('Invalid daily ladder save');
+    }
+    final progress = LevelState.fromJson(json);
+    if (progress.world != DailyChallenge.world ||
+        progress.level != challenge.level) {
+      throw const FormatException('Daily save does not match its puzzle');
+    }
+    return progress;
+  }
+
+  Future<void> persistDailyState(
+    DailyChallenge challenge,
+    LevelState progress,
+  ) async {
+    final preferences = _sharedPreferences;
+    if (preferences == null) throw StateError('Game is not loaded');
+    if (progress.world != DailyChallenge.world ||
+        progress.level != challenge.level) {
+      throw ArgumentError('Daily progress must match its puzzle');
+    }
+    final previous = getDailyState(challenge);
+    final completedBefore = isDailyCompleted(challenge);
+    if (!await preferences.setString(
+      'daily_v1_progress_${challenge.dateKey}',
+      jsonEncode(progress.toJson()),
+    )) {
+      throw StateError('Could not save daily progress');
+    }
+    if (progress.isWon && !completedBefore) {
+      if (!await preferences.setBool(
+        'daily_v1_completed_${challenge.dateKey}',
+        true,
+      )) {
+        throw StateError('Could not save daily completion');
+      }
+    }
+    if (!_disposed &&
+        (previous.isEmpty ||
+            previous.currentRung != progress.currentRung ||
+            (!completedBefore && progress.isWon))) {
+      notifyListeners();
+    }
+  }
 
   bool get hapticsEnabled =>
       _sharedPreferences?.getBool('hapticsEnabled') ?? true;
@@ -98,7 +186,10 @@ class GameState with ChangeNotifier {
     return null;
   }
 
-  GameState(this.gameStore) {
+  GameState(this.gameStore, {DateTime Function()? now})
+    : _now = now ?? DateTime.now {
+    _today = DailyChallenge(_now());
+    WidgetsBinding.instance.addObserver(this);
     this.gameStore.addListener(_handleStoreChange);
     _setMaxLevelCount();
   }
@@ -106,6 +197,8 @@ class GameState with ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _dailyTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     this.gameStore.removeListener(_handleStoreChange);
     super.dispose();
   }
@@ -145,6 +238,7 @@ class GameState with ChangeNotifier {
     } finally {
       print("gameState: End initialize");
       isLoaded = true;
+      if (!_disposed) refreshDaily();
       if (!_disposed) notifyListeners();
     }
   }
@@ -271,6 +365,7 @@ class GameState with ChangeNotifier {
     if (preferences != null) {
       for (final key in preferences.getKeys()) {
         if (key.startsWith('v5_') ||
+            key.startsWith('daily_v1_') ||
             key == 'lastPlayedWorld' ||
             key == 'lastPlayedLevel') {
           await preferences.remove(key);

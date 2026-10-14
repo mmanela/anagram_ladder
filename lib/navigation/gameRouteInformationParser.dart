@@ -1,4 +1,5 @@
 import 'package:anagram_ladder/models/gameState.dart';
+import 'package:anagram_ladder/models/dailyChallenge.dart';
 import 'package:flutter/material.dart';
 
 import 'gameRoutePath.dart';
@@ -16,6 +17,13 @@ class GameRouteInformationParser extends RouteInformationParser<GameRoutePath> {
     }
 
     switch (root) {
+      case "daily":
+        if (uri.pathSegments.length == 1) return GameRoutePath.daily();
+        if (uri.pathSegments.length == 2 &&
+            DailyChallenge.tryParse(uri.pathSegments[1]) != null) {
+          return GameRoutePath.dailyLevel(uri.pathSegments[1]);
+        }
+        return GameRoutePath.unknown();
       case "world":
         if (uri.pathSegments.length != 2 && uri.pathSegments.length != 4) {
           return GameRoutePath.unknown();
@@ -58,6 +66,12 @@ class GameRouteInformationParser extends RouteInformationParser<GameRoutePath> {
     }
     if (path.page == GameRoutePage.Settings) {
       return RouteInformation(uri: Uri.parse('/settings'));
+    }
+    if (path.page == GameRoutePage.Daily) {
+      return RouteInformation(uri: Uri.parse('/daily'));
+    }
+    if (path.page == GameRoutePage.DailyLevel) {
+      return RouteInformation(uri: Uri.parse('/daily/${path.dailyDate}'));
     }
     if (path.page == GameRoutePage.Pay) {
       return RouteInformation(uri: Uri.parse('/pay'));

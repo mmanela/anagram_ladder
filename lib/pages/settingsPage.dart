@@ -49,7 +49,8 @@ class _SettingsPageState extends State<SettingsPage> {
         scrollable: true,
         title: const Text('Reset all ladder progress?'),
         content: const Text(
-          'This removes all solved words and saved ladder progress. '
+          'This removes all solved words, saved ladder progress, '
+          'and daily results. '
           'It cannot be undone.',
         ),
         actions: [

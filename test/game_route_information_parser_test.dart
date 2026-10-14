@@ -9,6 +9,8 @@ void main() {
     '/': GameRoutePath.home(),
     '/about': GameRoutePath.about(),
     '/settings': GameRoutePath.settings(),
+    '/daily': GameRoutePath.daily(),
+    '/daily/2026-10-14': GameRoutePath.dailyLevel('2026-10-14'),
     '/pay': GameRoutePath.pay(),
     '/worldSet': GameRoutePath.worldSet(),
     '/world/6': GameRoutePath.world(6),
@@ -23,11 +25,16 @@ void main() {
       expect(parsed.page, entry.value.page);
       expect(parsed.world, entry.value.world);
       expect(parsed.level, entry.value.level);
+      expect(parsed.dailyDate, entry.value.dailyDate);
       expect(parser.restoreRouteInformation(parsed)!.uri.path, entry.key);
     });
   }
 
   for (final path in [
+    '/daily/not-a-date',
+    '/daily/2026-02-30',
+    '/daily/2026-2-1',
+    '/daily/2026-10-14/extra',
     '/world',
     '/world/not-a-number',
     '/world/5',

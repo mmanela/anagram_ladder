@@ -7,8 +7,12 @@ import 'package:anagram_ladder/components/fixedLetterRow.dart';
 import 'package:anagram_ladder/components/hintDialog.dart';
 import 'package:anagram_ladder/components/letterBoxDimensions.dart';
 import 'package:anagram_ladder/components/winningPopup.dart';
+import 'package:anagram_ladder/components/dailyResultCard.dart';
+import 'package:anagram_ladder/models/dailyChallenge.dart';
 import 'package:anagram_ladder/models/gameState.dart';
 import 'package:anagram_ladder/models/levelState.dart';
+import 'package:anagram_ladder/navigation/gameRouteNavigator.dart';
+import 'package:anagram_ladder/navigation/gameRoutePath.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
@@ -20,8 +24,14 @@ class LevelPage extends StatefulWidget {
   static const newLetterDuration = Duration(milliseconds: 700);
   final int world;
   final int level;
+  final DailyChallenge? daily;
 
-  LevelPage(this.world, this.level, {super.key});
+  LevelPage(this.world, this.level, {super.key}) : daily = null;
+
+  LevelPage.daily(DailyChallenge challenge, {super.key})
+    : daily = challenge,
+      world = DailyChallenge.world,
+      level = challenge.level;
 
   @override
   State<LevelPage> createState() => _LevelPageState();
@@ -39,6 +49,7 @@ class _LevelPageState extends State<LevelPage> {
   bool _levelComplete = false;
   bool _showWinningView = false;
   bool _showInstructions = true;
+  Object? _loadError;
   final _activeLettersKey = GlobalKey();
   Timer? _completionTimer;
   Timer? _cascadeTimer;
@@ -58,11 +69,46 @@ class _LevelPageState extends State<LevelPage> {
     super.initState();
     final game = context.read<GameState>();
     _showInstructions = !game.controlsLearned;
-    game.getLevelOrLoad(widget.world, widget.level).then((ladder) {
+    _loadLevel();
+  }
+
+  Future<void> _loadLevel() async {
+    final game = context.read<GameState>();
+    try {
+      final ladder = await game.getLevelOrLoad(widget.world, widget.level);
       if (!mounted) return;
-      final saved = game.getLevelState(widget.world, widget.level);
+      final saved = widget.daily == null
+          ? game.getLevelState(widget.world, widget.level)
+          : game.getDailyState(widget.daily!);
+      final levels = ladder.getBottomUp();
+      if (widget.daily != null && !saved.isEmpty) {
+        if (saved.rungCount != levels.length ||
+            List.generate(levels.length, (index) => index).any(
+              (index) =>
+                  saved.levelLetters[index].length !=
+                      levels[index].letterCount ||
+                  (index < saved.currentRung &&
+                      !levels[index].words.contains(
+                        saved.levelLetters[index].join(),
+                      )),
+            )) {
+          throw const FormatException(
+            'Daily progress does not match the ladder',
+          );
+        }
+        if (!saved.isWon) {
+          final actual = List.of(saved.levelLetters[saved.currentRung])..sort();
+          final expected = List.of(levels[saved.currentRung].letters)..sort();
+          if (actual.join() != expected.join()) {
+            throw const FormatException('Daily letters do not match the rung');
+          }
+        } else if (!game.isDailyCompleted(widget.daily!)) {
+          await game.persistDailyState(widget.daily!, saved);
+          if (!mounted) return;
+        }
+      }
       setState(() {
-        _levels = ladder.getBottomUp();
+        _levels = levels;
         if (saved.isEmpty) {
           _initializeLevelNew();
         } else {
@@ -77,7 +123,10 @@ class _LevelPageState extends State<LevelPage> {
         }
       });
       _scrollToActiveRow();
-    });
+    } catch (error) {
+      debugPrint('Ladder: could not load: $error');
+      if (mounted) setState(() => _loadError = error);
+    }
   }
 
   @override
@@ -91,10 +140,13 @@ class _LevelPageState extends State<LevelPage> {
     _filledLetters = [
       for (final rung in _levels) List.filled(rung.letterCount, ''),
     ];
-    _filledLetters[0] = List.of(currentLevel.letters)..shuffle();
+    final random = widget.daily == null
+        ? null
+        : Random(widget.daily!.dayNumber);
+    _filledLetters[0] = List.of(currentLevel.letters)..shuffle(random);
     for (var attempt = 0; attempt < 10; attempt++) {
       if (!currentLevel.words.contains(activeLetters.join())) break;
-      activeLetters.shuffle();
+      activeLetters.shuffle(random);
     }
     _checkActiveRow();
   }
@@ -119,7 +171,9 @@ class _LevelPageState extends State<LevelPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          '${GameState.worldLabels[widget.world]} Ladder #${widget.level}',
+          widget.daily == null
+              ? '${GameState.worldLabels[widget.world]} Ladder #${widget.level}'
+              : 'Daily ${widget.daily!.dateKey}',
         ),
         actions: [
           IconButton(
@@ -150,7 +204,28 @@ class _LevelPageState extends State<LevelPage> {
         ],
       ),
       body: SafeArea(
-        child: _levels.isEmpty
+        child: _loadError != null
+            ? Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'Could not load this ladder. Please try again.',
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          setState(() => _loadError = null);
+                          _loadLevel();
+                        },
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            : _levels.isEmpty
             ? const Center(
                 child: CircularProgressIndicator(
                   semanticsLabel: 'Loading ladder',
@@ -159,7 +234,20 @@ class _LevelPageState extends State<LevelPage> {
             : Stack(
                 children: [
                   _board(context),
-                  if (_showWinningView)
+                  if (_showWinningView && widget.daily != null)
+                    Center(
+                      child: DailyResultCard(
+                        challenge: widget.daily!,
+                        wordLengths: _levels
+                            .map((rung) => rung.letterCount)
+                            .toList(),
+                        onReplay: _resetLevel,
+                        onBack: () => context.read<GameRouteNavigator>().goto(
+                          GameRoutePath.daily(),
+                        ),
+                      ),
+                    )
+                  else if (_showWinningView)
                     WinningPopup(
                       wasPlayed: _wasPlayed,
                       world: widget.world,
@@ -522,8 +610,8 @@ class _LevelPageState extends State<LevelPage> {
         }
       });
       if (isWon) {
-        _persistState().then((_) {
-          if (mounted) setState(() => _showWinningView = true);
+        _persistState().then((saved) {
+          if (saved && mounted) setState(() => _showWinningView = true);
         });
       } else {
         _checkActiveRow(delayed: true);
@@ -532,17 +620,42 @@ class _LevelPageState extends State<LevelPage> {
     });
   }
 
-  Future<void> _persistState() async {
-    await context.read<GameState>().persistLevelState(
-      LevelState(
-        widget.world,
-        widget.level,
-        _currentRung == 0 ? 0 : _filledLetters[_currentRung - 1].length,
-        _currentRung,
-        _levels.length,
-        _filledLetters.map((row) => List<String>.of(row)).toList(),
-      ),
+  Future<bool> _persistState() async {
+    final game = context.read<GameState>();
+    final progress = LevelState(
+      widget.world,
+      widget.level,
+      _currentRung == 0 ? 0 : _filledLetters[_currentRung - 1].length,
+      _currentRung,
+      _levels.length,
+      _filledLetters.map((row) => List<String>.of(row)).toList(),
     );
+    try {
+      if (widget.daily == null) {
+        await game.persistLevelState(progress);
+      } else {
+        await game.persistDailyState(widget.daily!, progress);
+      }
+      return true;
+    } catch (error) {
+      debugPrint('Ladder: could not save progress: $error');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Could not save your progress. Please retry.'),
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () async {
+                if (await _persistState() && mounted && isWon) {
+                  setState(() => _showWinningView = true);
+                }
+              },
+            ),
+          ),
+        );
+      }
+      return false;
+    }
   }
 
   void _scrollToActiveRow() {

@@ -102,6 +102,24 @@ class HomePage extends StatelessWidget {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 16),
+                  Card(
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.all(20),
+                      leading: Icon(
+                        Icons.today_outlined,
+                        color: colors.primary,
+                      ),
+                      title: const Text('Daily ladder'),
+                      subtitle: Text(
+                        game.isDailyCompleted(game.today)
+                            ? 'Completed today'
+                            : 'A Normal ladder each day.',
+                      ),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => navigation.goto(GameRoutePath.daily()),
+                    ),
+                  ),
                   const SizedBox(height: 24),
                   Wrap(
                     alignment: WrapAlignment.center,

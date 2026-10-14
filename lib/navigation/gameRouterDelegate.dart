@@ -1,8 +1,10 @@
 import 'package:anagram_ladder/models/gameState.dart';
+import 'package:anagram_ladder/models/dailyChallenge.dart';
 import 'package:anagram_ladder/models/gameStore.dart';
 import 'package:anagram_ladder/navigation/gameRouteNavigator.dart';
 import 'package:anagram_ladder/pages/aboutPage.dart';
 import 'package:anagram_ladder/pages/homePage.dart';
+import 'package:anagram_ladder/pages/dailyPage.dart';
 import 'package:anagram_ladder/pages/levelPage.dart';
 import 'package:anagram_ladder/pages/loadingPage.dart';
 import 'package:anagram_ladder/pages/payPage.dart';
@@ -37,6 +39,15 @@ class GameRouterDelegate extends RouterDelegate<GameRoutePath>
 
   GameRoutePath get currentConfiguration {
     final path = _routeNavigator.current;
+    if (_gameState.isLoaded && path.page == GameRoutePage.DailyLevel) {
+      final challenge = DailyChallenge.tryParse(path.dailyDate ?? '');
+      if (challenge == null ||
+          challenge.date.isAfter(_gameState.today.date) ||
+          (challenge.date.isBefore(_gameState.today.date) &&
+              !_gameState.hasDailyProgress(challenge))) {
+        return GameRoutePath.unknown();
+      }
+    }
     if (_gameState.isLoaded &&
         (path.page == GameRoutePage.World ||
             path.page == GameRoutePage.Level) &&
@@ -59,6 +70,20 @@ class GameRouterDelegate extends RouterDelegate<GameRoutePath>
           ? [MaterialPage(key: ValueKey('LoadingPage'), child: LoadingPage())]
           : [
               MaterialPage(key: ValueKey('HomePage'), child: HomePage()),
+              if (currentConfiguration.page == GameRoutePage.Daily ||
+                  currentConfiguration.page == GameRoutePage.DailyLevel)
+                const MaterialPage(
+                  key: ValueKey('DailyPage'),
+                  child: DailyPage(),
+                ),
+              if (currentConfiguration.page == GameRoutePage.DailyLevel)
+                MaterialPage(
+                  key: ValueKey('DailyLevelPage'),
+                  child: LevelPage.daily(
+                    DailyChallenge.tryParse(currentConfiguration.dailyDate!)!,
+                    key: ValueKey('daily-${currentConfiguration.dailyDate}'),
+                  ),
+                ),
               if (currentConfiguration.page == GameRoutePage.Unknown)
                 MaterialPage(
                   key: ValueKey('UnknownPage'),
@@ -110,6 +135,8 @@ class GameRouterDelegate extends RouterDelegate<GameRoutePath>
           GameRoutePage.WorldSet => 'WorldSetPage',
           GameRoutePage.World => 'WorldPage',
           GameRoutePage.Level => 'LevelPage',
+          GameRoutePage.Daily => 'DailyPage',
+          GameRoutePage.DailyLevel => 'DailyLevelPage',
         };
         if (page.key != ValueKey(currentPageKey)) {
           return;
@@ -122,7 +149,11 @@ class GameRouterDelegate extends RouterDelegate<GameRoutePath>
           case GameRoutePage.About:
           case GameRoutePage.WorldSet:
           case GameRoutePage.Settings:
+          case GameRoutePage.Daily:
             _routeNavigator.goto(GameRoutePath.home());
+            break;
+          case GameRoutePage.DailyLevel:
+            _routeNavigator.goto(GameRoutePath.daily());
             break;
           case GameRoutePage.Pay:
             if (currentConfiguration.source == GameRoutePage.World) {

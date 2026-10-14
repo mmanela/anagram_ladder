@@ -51,6 +51,33 @@ puzzles, free hints, level access, and v5 saved-progress format.
   purchase failures, supports retry and explicit Restore Purchases, and
   prevents duplicate purchase requests.
 
+## Daily ladder
+
+The home screen has a separate daily ladder with a simple completed-today status.
+Everyone gets the same Normal puzzle for a given calendar date. The date changes
+at local midnight, including while the app stays open, and refreshes after
+returning from the background. A ladder already in progress stays on its
+original date, so crossing midnight does not replace its letters or give credit
+to the wrong day.
+
+This first version rotates through the existing first 50 Normal ladders, repeating
+after 50 days. Selection uses calendar-day arithmetic rather than elapsed hours,
+so daylight-saving changes do not shift the schedule. There is no backend,
+account, new puzzle generator, timer, or streak penalty. Purchase access does not
+change the selection.
+
+Daily arrangements and completion dates use separate `daily_v1_` preferences.
+They never change regular ladder progress, difficulty completion, or Continue.
+Replay preserves the completed date. Reset progress clears both regular progress
+and daily results, but preserves haptics and the learned-controls preference.
+Malformed or future daily links cannot open new challenges; previously started
+daily ladders can be resumed by their dated route.
+
+Completion offers native Share and Copy result. Results contain the date and
+green rung shapes, not answers or letter arrangements. Sharing uses `share_plus`,
+anchors its sheet to the button on iPad, and reports failures with Copy available
+as an alternative. Daily completion is local to this installation.
+
 Purchase access remains based on the existing store transaction flow. This
 phase does not add a persistent offline entitlement cache or change pricing,
 the number of free levels, or Android's disabled purchase support.
@@ -103,6 +130,11 @@ cover Continue, real horizontal dragging, vertical scrolling over tiles,
 tap-to-move, screen-reader move actions, haptic preferences, reduced motion,
 ten-letter boards on narrow phones, Settings reset confirmation, and large-text
 home, selector, and store layouts.
+Daily regressions cover deterministic selection, midnight and resume rollover,
+isolated saves, completion credit after replay, reset, malformed saves and routes,
+spoiler-free sharing, copy and failure feedback, and small-screen/large-text
+daily and completion layouts. Highlight tests include duplicate new letters
+and reduced motion; instruction tests cover learning and Help on later visits.
 
 Model tests cover saved progress, completion counts, reset, next-level selection
 across difficulties, the 50-to-100-level unlock, trie entries, and restored
