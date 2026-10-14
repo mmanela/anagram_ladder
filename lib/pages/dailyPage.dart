@@ -45,8 +45,15 @@ class _DailyPageState extends State<DailyPage> {
                   style: Theme.of(context).textTheme.headlineMedium,
                 ),
                 const SizedBox(height: 12),
+                Text(
+                  today.difficultyDescription,
+                  style: Theme.of(context).textTheme.titleLarge
+                      ?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 12),
                 const Text(
-                  'One Normal ladder, shared by everyone on this date. '
+                  'The same puzzle for everyone on this date. '
+                  'Difficulty varies from day to day. '
                   'A new puzzle arrives at midnight in your local time. '
                   'Your regular ladders are untouched.',
                 ),

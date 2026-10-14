@@ -80,7 +80,10 @@ class GameRouterDelegate extends RouterDelegate<GameRoutePath>
                 MaterialPage(
                   key: ValueKey('DailyLevelPage'),
                   child: LevelPage.daily(
-                    DailyChallenge.tryParse(currentConfiguration.dailyDate!)!,
+                    _gameState.dailyForDate(
+                      DailyChallenge.tryParse(currentConfiguration.dailyDate!)!
+                          .date,
+                    ),
                     key: ValueKey('daily-${currentConfiguration.dailyDate}'),
                   ),
                 ),

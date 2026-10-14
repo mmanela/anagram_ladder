@@ -76,7 +76,8 @@ void main() {
     await startGame(tester);
     expect(find.text('Rearrange.\nSolve. Climb.'), findsOneWidget);
     expect(find.text('One word.\nA little higher.'), findsNothing);
-    expect(find.text('A Normal ladder each day.'), findsOneWidget);
+    final day = tester.element(find.text('Play')).read<GameState>().today;
+    expect(find.text('${day.difficultyDescription}.'), findsOneWidget);
     expect(find.textContaining('free Normal ladder'), findsNothing);
   }, variant: TargetPlatformVariant.only(TargetPlatform.android));
 

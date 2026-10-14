@@ -37,13 +37,7 @@ class GameState with ChangeNotifier, WidgetsBindingObserver {
       defaultTargetPlatform != TargetPlatform.android;
   bool _shouldAdverstiseMoreLevels = false;
 
-  static final Map<int, String> worldLabels = {
-    6: "Normal",
-    7: "Hard",
-    8: "Daunting",
-    9: "Expert",
-    10: "Genius",
-  };
+  static const worldLabels = DailyChallenge.difficulties;
   static final worldIds = IntegerRange(
     AnagramLadderBuilder.SeedWordLengthMin,
     AnagramLadderBuilder.SeedWordLengthMax + 1,
@@ -54,7 +48,27 @@ class GameState with ChangeNotifier, WidgetsBindingObserver {
   late DailyChallenge _today;
   Timer? _dailyTimer;
 
-  DailyChallenge get today => _today;
+  DailyChallenge get today => dailyForDate(_today.date);
+
+  DailyChallenge dailyForDate(DateTime date) {
+    final challenge = DailyChallenge(date);
+    if (_sharedPreferences?.containsKey(
+              'daily_v1_progress_${challenge.dateKey}',
+            ) ==
+            true ||
+        _sharedPreferences?.containsKey(
+              'daily_v1_completed_${challenge.dateKey}',
+            ) ==
+            true) {
+      return DailyChallenge.legacy(date);
+    }
+    return challenge;
+  }
+
+  String _dailyKey(DailyChallenge challenge, String part) {
+    final selected = dailyForDate(challenge.date);
+    return 'daily_${selected.isLegacy ? 'v1' : 'v2'}_${part}_${selected.dateKey}';
+  }
 
   void refreshDaily() {
     if (_disposed) return;
@@ -76,27 +90,22 @@ class GameState with ChangeNotifier, WidgetsBindingObserver {
   }
 
   bool hasDailyProgress(DailyChallenge challenge) =>
-      _sharedPreferences?.containsKey(
-        'daily_v1_progress_${challenge.dateKey}',
-      ) ??
+      _sharedPreferences?.containsKey(_dailyKey(challenge, 'progress')) ??
       false;
 
   bool isDailyCompleted(DailyChallenge challenge) =>
-      _sharedPreferences?.getBool('daily_v1_completed_${challenge.dateKey}') ??
-      false;
+      _sharedPreferences?.getBool(_dailyKey(challenge, 'completed')) ?? false;
 
   LevelState getDailyState(DailyChallenge challenge) {
-    final raw = _sharedPreferences?.getString(
-      'daily_v1_progress_${challenge.dateKey}',
-    );
+    final selected = dailyForDate(challenge.date);
+    final raw = _sharedPreferences?.getString(_dailyKey(selected, 'progress'));
     if (raw == null) return LevelState.empty();
     final json = jsonDecode(raw);
     if (json is! Map<String, dynamic>) {
       throw const FormatException('Invalid daily ladder save');
     }
     final progress = LevelState.fromJson(json);
-    if (progress.world != DailyChallenge.world ||
-        progress.level != challenge.level) {
+    if (progress.world != selected.world || progress.level != selected.level) {
       throw const FormatException('Daily save does not match its puzzle');
     }
     return progress;
@@ -108,23 +117,20 @@ class GameState with ChangeNotifier, WidgetsBindingObserver {
   ) async {
     final preferences = _sharedPreferences;
     if (preferences == null) throw StateError('Game is not loaded');
-    if (progress.world != DailyChallenge.world ||
-        progress.level != challenge.level) {
+    final selected = dailyForDate(challenge.date);
+    if (progress.world != selected.world || progress.level != selected.level) {
       throw ArgumentError('Daily progress must match its puzzle');
     }
     final previous = getDailyState(challenge);
     final completedBefore = isDailyCompleted(challenge);
     if (!await preferences.setString(
-      'daily_v1_progress_${challenge.dateKey}',
+      _dailyKey(selected, 'progress'),
       jsonEncode(progress.toJson()),
     )) {
       throw StateError('Could not save daily progress');
     }
     if (progress.isWon && !completedBefore) {
-      if (!await preferences.setBool(
-        'daily_v1_completed_${challenge.dateKey}',
-        true,
-      )) {
+      if (!await preferences.setBool(_dailyKey(selected, 'completed'), true)) {
         throw StateError('Could not save daily completion');
       }
     }
@@ -366,6 +372,7 @@ class GameState with ChangeNotifier, WidgetsBindingObserver {
       for (final key in preferences.getKeys()) {
         if (key.startsWith('v5_') ||
             key.startsWith('daily_v1_') ||
+            key.startsWith('daily_v2_') ||
             key == 'lastPlayedWorld' ||
             key == 'lastPlayedLevel') {
           await preferences.remove(key);

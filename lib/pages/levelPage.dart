@@ -30,7 +30,7 @@ class LevelPage extends StatefulWidget {
 
   LevelPage.daily(DailyChallenge challenge, {super.key})
     : daily = challenge,
-      world = DailyChallenge.world,
+      world = challenge.world,
       level = challenge.level;
 
   @override

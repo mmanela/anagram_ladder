@@ -54,19 +54,27 @@ puzzles, free hints, level access, and v5 saved-progress format.
 ## Daily ladder
 
 The home screen has a separate daily ladder with a simple completed-today status.
-Everyone gets the same Normal puzzle for a given calendar date. The date changes
+Daily selection varies across Normal, Hard, Daunting, Expert, and Genius.
+The home card and daily page show the difficulty and maximum word length before
+play. The completion card and shared result also identify the difficulty.
+Everyone gets the same scheduled puzzle for a given calendar date. The date changes
 at local midnight, including while the app stays open, and refreshes after
 returning from the background. A ladder already in progress stays on its
 original date, so crossing midnight does not replace its letters or give credit
 to the wrong day.
 
-This first version rotates through the existing first 50 Normal ladders, repeating
-after 50 days. Selection uses calendar-day arithmetic rather than elapsed hours,
+Selection uses a deterministic shuffled schedule of 250 existing ladders: the
+first 50 from each difficulty. All 250 appear once before the schedule repeats,
+with no generation or changes to purchased-level access. The shuffle uses
+explicit integer arithmetic so the schedule matches across native and web builds.
+Date selection uses calendar-day arithmetic rather than elapsed hours,
 so daylight-saving changes do not shift the schedule. There is no backend,
 account, new puzzle generator, timer, or streak penalty. Purchase access does not
 change the selection.
 
-Daily arrangements and completion dates use separate `daily_v1_` preferences.
+Daily arrangements and completion dates use separate `daily_v2_` preferences.
+Already-started Normal dailies retain their original puzzle, progress, and
+completion in `daily_v1_` preferences rather than changing difficulty mid-game.
 They never change regular ladder progress, difficulty completion, or Continue.
 Replay preserves the completed date. Reset progress clears both regular progress
 and daily results, but preserves haptics and the learned-controls preference.
@@ -130,7 +138,9 @@ cover Continue, real horizontal dragging, vertical scrolling over tiles,
 tap-to-move, screen-reader move actions, haptic preferences, reduced motion,
 ten-letter boards on narrow phones, Settings reset confirmation, and large-text
 home, selector, and store layouts.
-Daily regressions cover deterministic selection, midnight and resume rollover,
+Daily regressions cover all five difficulties, a fixed schedule fixture,
+visibility of difficulty before play and in results, legacy Normal saves,
+deterministic selection, midnight and resume rollover,
 isolated saves, completion credit after replay, reset, malformed saves and routes,
 spoiler-free sharing, copy and failure feedback, and small-screen/large-text
 daily and completion layouts. Highlight tests include duplicate new letters

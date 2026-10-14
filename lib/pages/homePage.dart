@@ -112,9 +112,8 @@ class HomePage extends StatelessWidget {
                       ),
                       title: const Text('Daily ladder'),
                       subtitle: Text(
-                        game.isDailyCompleted(game.today)
-                            ? 'Completed today'
-                            : 'A Normal ladder each day.',
+                        '${game.today.difficultyDescription}.'
+                        '${game.isDailyCompleted(game.today) ? ' Completed today.' : ''}',
                       ),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => navigation.goto(GameRoutePath.daily()),

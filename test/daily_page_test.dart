@@ -1,10 +1,15 @@
+import 'dart:convert';
+
 import 'package:anagram_ladder/anagram/ladderLevel.dart';
 import 'package:anagram_ladder/components/dailyResultCard.dart';
 import 'package:anagram_ladder/models/dailyChallenge.dart';
 import 'package:anagram_ladder/models/gameState.dart';
+import 'package:anagram_ladder/models/gameStore.dart';
 import 'package:anagram_ladder/models/levelState.dart';
 import 'package:anagram_ladder/navigation/gameRouteNavigator.dart';
 import 'package:anagram_ladder/navigation/gameRoutePath.dart';
+import 'package:anagram_ladder/navigation/gameRouteInformationParser.dart';
+import 'package:anagram_ladder/navigation/gameRouterDelegate.dart';
 import 'package:anagram_ladder/pages/dailyPage.dart';
 import 'package:anagram_ladder/pages/levelPage.dart';
 import 'package:anagram_ladder/pages/unknownPage.dart';
@@ -16,6 +21,33 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'level_page_test.dart' show setViewport;
 import 'widget_test.dart' show startGame;
+
+Future<GameState> startDailyAt(WidgetTester tester, DateTime date) async {
+  final store = GameStore();
+  final game = GameState(store, now: () => date);
+  final navigation = GameRouteNavigator();
+  final router = GameRouterDelegate(navigation, game, store);
+  addTearDown(store.dispose);
+  addTearDown(game.dispose);
+  addTearDown(navigation.dispose);
+  addTearDown(router.dispose);
+  await tester.runAsync(() => game.initialize());
+  await tester.pumpWidget(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: game),
+        ChangeNotifierProvider.value(value: store),
+        ChangeNotifierProvider.value(value: navigation),
+      ],
+      child: MaterialApp.router(
+        routerDelegate: router,
+        routeInformationParser: GameRouteInformationParser(),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+  return game;
+}
 
 Future<void> showDaily(WidgetTester tester) async {
   await tester.ensureVisible(find.text('Daily ladder'));
@@ -30,7 +62,7 @@ Future<LadderLevel> seedDailyFinal(
   DailyChallenge day, {
   bool completed = false,
 }) async {
-  final ladder = await game.getLevelOrLoad(6, day.level);
+  final ladder = await game.getLevelOrLoad(day.world, day.level);
   final rungs = ladder.getBottomUp();
   final solution = ladder.words.firstWhere(
     (word) => !ladder.words.contains(word.substring(1) + word[0]),
@@ -38,9 +70,9 @@ Future<LadderLevel> seedDailyFinal(
   await game.persistDailyState(
     day,
     LevelState(
-      6,
+      day.world,
       day.level,
-      completed ? 6 : 5,
+      completed ? ladder.letterCount : rungs[rungs.length - 2].letterCount,
       completed ? rungs.length : rungs.length - 1,
       rungs.length,
       [
@@ -61,6 +93,82 @@ void main() {
     addTearDown(() => WidgetController.hitTestWarningShouldBeFatal = wasFatal);
   });
 
+  for (final world in GameState.worldIds) {
+    testWidgets('difficulty $world is clear before play and in the result', (
+      tester,
+    ) async {
+      setViewport(tester, const Size(400, 800));
+      final date = [
+        for (var offset = 0; offset < DailyChallenge.puzzleCount; offset++)
+          DateTime(2026, 10, 14 + offset),
+      ].firstWhere((date) => DailyChallenge(date).world == world);
+      final game = await startDailyAt(tester, date);
+      final day = game.today;
+      expect(find.text('${day.difficultyDescription}.'), findsOneWidget);
+      await showDaily(tester);
+      expect(find.text(day.difficultyDescription), findsOneWidget);
+      await tester.ensureVisible(find.text('Play daily ladder'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Play daily ladder'));
+      await tester.pumpAndSettle();
+      expect(tester.widget<LevelPage>(find.byType(LevelPage)).world, world);
+      expect(game.getDailyState(day).world, world);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      final ladder = await seedDailyFinal(game, day, completed: true);
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('View completed ladder'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('View completed ladder'));
+      await tester.pumpAndSettle();
+      expect(find.byType(DailyResultCard), findsOneWidget);
+      expect(find.text(day.difficultyDescription), findsOneWidget);
+      expect(
+        day.shareText(
+          ladder.getBottomUp().map((rung) => rung.letterCount).toList(),
+        ),
+        contains('${day.difficulty} |'),
+      );
+    });
+  }
+
+  testWidgets('old dated links resume their original Normal puzzle', (
+    tester,
+  ) async {
+    setViewport(tester, const Size(400, 800));
+    final date = DateTime(2026, 10, 14);
+    final game = await startDailyAt(tester, date);
+    final old = DailyChallenge.legacy(date);
+    final ladder = await game.getLevelOrLoad(old.world, old.level);
+    final progress = LevelState(
+      old.world,
+      old.level,
+      0,
+      0,
+      ladder.getBottomUp().length,
+      [
+        ladder.getBottom().letters.reversed.toList(),
+        for (final rung in ladder.getBottomUp().skip(1))
+          List.filled(rung.letterCount, ''),
+      ],
+    );
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      'daily_v1_progress_${old.dateKey}',
+      jsonEncode(progress.toJson()),
+    );
+    tester
+        .element(find.text('Play'))
+        .read<GameRouteNavigator>()
+        .goto(GameRoutePath.dailyLevel(old.dateKey));
+    await tester.pumpAndSettle();
+    final page = tester.widget<LevelPage>(find.byType(LevelPage));
+    expect(page.world, old.world);
+    expect(page.level, old.level);
+    expect(page.daily!.isLegacy, isTrue);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'daily play resumes independently and Back returns to the daily page',
     (tester) async {
@@ -77,7 +185,10 @@ void main() {
       final letters = List<String>.of(
         game.getDailyState(day).levelLetters.first,
       );
-      final bottom = (await game.getLevelOrLoad(6, day.level)).getBottom();
+      final bottom = (await game.getLevelOrLoad(
+        day.world,
+        day.level,
+      )).getBottom();
       final move =
           [
             for (var from = 0; from < letters.length; from++)
@@ -98,7 +209,7 @@ void main() {
       await tester.pumpAndSettle();
       final saved = game.getDailyState(day).levelLetters.first;
       expect(saved, expected);
-      expect(game.getLevelState(6, day.level).isEmpty, isTrue);
+      expect(game.getLevelState(day.world, day.level).isEmpty, isTrue);
       expect(game.resumeLevel, isNull);
       await tester.pageBack();
       await tester.pumpAndSettle();
@@ -126,16 +237,16 @@ void main() {
       final game = context.read<GameState>();
       final navigation = context.read<GameRouteNavigator>();
       final day = game.today;
-      await seedDailyFinal(game, day);
+      final ladder = await seedDailyFinal(game, day);
       navigation.goto(GameRoutePath.dailyLevel(day.dateKey));
       await tester.pumpAndSettle();
       tester
           .widget<ReorderableListView>(find.byType(ReorderableListView))
-          .onReorderItem!(5, 0);
+          .onReorderItem!(ladder.letterCount - 1, 0);
       await tester.pumpAndSettle();
       expect(find.byType(DailyResultCard), findsOneWidget);
       expect(game.isDailyCompleted(day), isTrue);
-      expect(game.getWorldCompletionInfo(6).completedCount, 0);
+      expect(game.getWorldCompletionInfo(day.world).completedCount, 0);
       await tester.ensureVisible(find.text('Replay'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Replay'));
@@ -175,7 +286,7 @@ void main() {
     final context = tester.element(find.text('Play'));
     final game = context.read<GameState>();
     final prefs = await SharedPreferences.getInstance();
-    final key = 'daily_v1_progress_${game.today.dateKey}';
+    final key = 'daily_v2_progress_${game.today.dateKey}';
     await prefs.setString(key, '{"invalid":true}');
     await showDaily(tester);
     expect(

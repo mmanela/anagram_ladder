@@ -88,6 +88,11 @@ class _DailyResultCardState extends State<DailyResultCard> {
               ),
               const SizedBox(height: 8),
               Text(widget.challenge.dateKey, textAlign: TextAlign.center),
+              const SizedBox(height: 8),
+              Text(
+                widget.challenge.difficultyDescription,
+                textAlign: TextAlign.center,
+              ),
               const SizedBox(height: 16),
               Text(
                 '${widget.wordLengths.length} rungs solved. Nicely done.',
