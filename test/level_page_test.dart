@@ -117,7 +117,7 @@ Future<void> arrangeWord(
 }
 
 Future<void> finishAnimation(WidgetTester tester) async {
-  await tester.pump(const Duration(seconds: 1));
+  await tester.pump(LevelPage.solveDuration);
   await tester.pump();
 }
 
@@ -135,25 +135,46 @@ void main() {
     setViewport(tester, const Size(900, 1200), textScale: 0.75);
     final state = await openFixture(tester);
     await arrangeWord(tester, state, 'star');
-    await tester.pump(const Duration(milliseconds: 999));
+    await tester.pump(const Duration(milliseconds: 319));
     expect(state.getLevelState(6, 1).currentRung, 0);
     await tester.pump(const Duration(milliseconds: 1));
     await tester.pump();
     expect(state.getLevelState(6, 1).currentRung, 1);
     expect(state.getLevelState(6, 1).levelLetters[1].join(), 'stare');
 
-    await tester.pump(const Duration(milliseconds: 499));
+    await tester.pump(const Duration(milliseconds: 179));
     expect(state.getLevelState(6, 1).currentRung, 1);
     await tester.pump(const Duration(milliseconds: 1));
     await finishAnimation(tester);
     expect(state.getLevelState(6, 1).currentRung, 2);
     expect(state.getLevelState(6, 1).levelLetters[2].join(), 'stared');
-    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(LevelPage.cascadeDelay);
     await finishAnimation(tester);
     expect(state.getLevelState(6, 1).isWon, isTrue);
     expect(state.getLevelState(6, 1).maxWordLength, 6);
     expect(state.getWorldCompletionInfo(6).completedCount, 1);
     expect(find.byType(WinningPopup), findsOneWidget);
+  });
+
+  testWidgets('reduced motion skips solve delays and tile animations', (
+    tester,
+  ) async {
+    setViewport(tester, const Size(900, 1200), textScale: 0.75);
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        FakeAccessibilityFeatures(disableAnimations: true);
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+    final state = await openFixture(tester);
+    expect(
+      tester
+          .widgetList<AnimatedContainer>(find.byType(AnimatedContainer))
+          .map((widget) => widget.duration),
+      everyElement(Duration.zero),
+    );
+    await arrangeWord(tester, state, 'star');
+    await tester.pumpAndSettle();
+    expect(state.getLevelState(6, 1).isWon, isTrue);
+    expect(find.byType(WinningPopup), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets(
@@ -169,7 +190,7 @@ void main() {
           .onReorderItem!(0, 4);
       await tester.pump();
       expect(state.getLevelState(6, 1).levelLetters[1].join(), 'tares');
-      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump(LevelPage.cascadeDelay);
       await finishAnimation(tester);
       expect(state.getLevelState(6, 1).currentRung, 1);
       expect(find.byType(WinningPopup), findsNothing);
@@ -188,7 +209,7 @@ void main() {
       await arrangeWord(tester, state, 'star');
       await finishAnimation(tester);
       await arrangeWord(tester, state, 'rates');
-      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump(LevelPage.cascadeDelay);
       await finishAnimation(tester);
       expect(state.getLevelState(6, 1).currentRung, 2);
       expect(state.getLevelState(6, 1).levelLetters[1].join(), 'rates');
@@ -206,7 +227,7 @@ void main() {
     for (var play = 0; play < 2; play++) {
       await arrangeWord(tester, state, 'star');
       await finishAnimation(tester);
-      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump(LevelPage.cascadeDelay);
       await finishAnimation(tester);
       expect(state.getLevelState(6, 1).currentRung, 2);
       expect(find.byType(WinningPopup), findsNothing);

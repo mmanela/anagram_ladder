@@ -186,7 +186,7 @@ void main() {
     );
     reorderable.onReorderItem!(ladder.letterCount - 1, 0);
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 999));
+    await tester.pump(const Duration(milliseconds: 319));
     expect(find.byType(WinningPopup), findsNothing);
 
     await tester.pump(const Duration(milliseconds: 1));

@@ -25,6 +25,7 @@ class WinningPopup extends StatefulWidget {
 
 class _WinningPopupState extends State<WinningPopup> {
   late ConfettiController _controllerCenter;
+  bool _celebrated = false;
   _WinningPopupState();
 
   @override
@@ -33,6 +34,22 @@ class _WinningPopupState extends State<WinningPopup> {
     _controllerCenter = ConfettiController(
       duration: const Duration(seconds: 5),
     );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _controllerCenter.stop();
+      return;
+    }
+    final game = context.read<GameState>();
+    if (!_celebrated &&
+        widget.wasPlayed &&
+        (game.isWorldDone(widget.world) || game.isGameDone())) {
+      _celebrated = true;
+      _controllerCenter.play();
+    }
   }
 
   @override
@@ -51,15 +68,16 @@ class _WinningPopupState extends State<WinningPopup> {
       child: Stack(
         children: [
           Center(child: _dialogBody(context)),
-          Align(
-            alignment: Alignment.topCenter,
-            child: ConfettiWidget(
-              confettiController: _controllerCenter,
-              emissionFrequency: 0.02,
-              blastDirectionality: BlastDirectionality.explosive,
-              shouldLoop: true,
+          if (!MediaQuery.disableAnimationsOf(context))
+            Align(
+              alignment: Alignment.topCenter,
+              child: ConfettiWidget(
+                confettiController: _controllerCenter,
+                emissionFrequency: 0.02,
+                blastDirectionality: BlastDirectionality.explosive,
+                shouldLoop: true,
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -83,11 +101,9 @@ class _WinningPopupState extends State<WinningPopup> {
     if (widget.wasPlayed) {
       if (isGameDone) {
         label = "You beat the game!";
-        _controllerCenter.play();
       } else if (isWorldDone) {
         final worldName = GameState.worldLabels[widget.world];
         label = "$worldName difficulty complete!";
-        _controllerCenter.play();
       }
     }
     return Card(

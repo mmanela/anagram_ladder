@@ -13,6 +13,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 class LevelPage extends StatefulWidget {
+  static const solveDuration = Duration(milliseconds: 320);
+  static const cascadeDelay = Duration(milliseconds: 180);
   final int world;
   final int level;
 
@@ -32,8 +34,12 @@ class _LevelPageState extends State<LevelPage> {
   final _activeRowKey = GlobalKey();
   Timer? _completionTimer;
   Timer? _cascadeTimer;
-  final _solveDuration = const Duration(milliseconds: 1000);
-  final _cascadeDelay = const Duration(milliseconds: 500);
+  Duration get _solveDuration => MediaQuery.disableAnimationsOf(context)
+      ? Duration.zero
+      : LevelPage.solveDuration;
+  Duration get _cascadeDelay => MediaQuery.disableAnimationsOf(context)
+      ? Duration.zero
+      : LevelPage.cascadeDelay;
 
   bool get isWon => _levels.isNotEmpty && _currentRung >= _levels.length;
   LadderLevel get currentLevel => _levels[_currentRung];
@@ -365,7 +371,9 @@ class _LevelPageState extends State<LevelPage> {
       if (rowContext != null) {
         Scrollable.ensureVisible(
           rowContext,
-          duration: const Duration(milliseconds: 200),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 200),
           alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
         );
       }
