@@ -266,8 +266,9 @@ class _LevelPageState extends State<LevelPage> {
                       label: const Text('Shuffle'),
                     ),
                     TextButton.icon(
-                      onPressed: () =>
-                          HintDialog.show(context, currentLevel.words),
+                      onPressed: _levelComplete
+                          ? null
+                          : () => HintDialog.show(context, currentLevel.words),
                       icon: const Icon(Icons.lightbulb_outline_rounded),
                       label: const Text('Hint'),
                     ),

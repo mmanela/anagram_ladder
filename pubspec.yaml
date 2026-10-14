@@ -67,6 +67,12 @@ flutter:
     - tools/langs/en/processed/ladders_8.json
     - tools/langs/en/processed/ladders_9.json
     - tools/langs/en/processed/ladders_10.json
+    - tools/langs/en/raw/Scowl/american-words.10
+    - tools/langs/en/raw/Scowl/english-words.10
+    - tools/langs/en/raw/Scowl/american-words.20
+    - tools/langs/en/raw/Scowl/english-words.20
+    - tools/langs/en/raw/Scowl/american-words.35
+    - tools/langs/en/raw/Scowl/english-words.35
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware.
