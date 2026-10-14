@@ -38,6 +38,7 @@ class _LevelPageState extends State<LevelPage> {
   bool _wasPlayed = true;
   bool _levelComplete = false;
   bool _showWinningView = false;
+  bool _showInstructions = true;
   final _activeLettersKey = GlobalKey();
   Timer? _completionTimer;
   Timer? _cascadeTimer;
@@ -56,6 +57,7 @@ class _LevelPageState extends State<LevelPage> {
   void initState() {
     super.initState();
     final game = context.read<GameState>();
+    _showInstructions = !game.controlsLearned;
     game.getLevelOrLoad(widget.world, widget.level).then((ladder) {
       if (!mounted) return;
       final saved = game.getLevelState(widget.world, widget.level);
@@ -119,6 +121,33 @@ class _LevelPageState extends State<LevelPage> {
         title: Text(
           '${GameState.worldLabels[widget.world]} Ladder #${widget.level}',
         ),
+        actions: [
+          IconButton(
+            tooltip: 'How to play',
+            icon: const Icon(Icons.help_outline_rounded),
+            onPressed: () => showDialog<void>(
+              context: context,
+              useRootNavigator: false,
+              builder: (context) => AlertDialog(
+                scrollable: true,
+                title: const Text('How to play'),
+                content: const Text(
+                  'Drag letters horizontally, or tap a letter and then its '
+                  'new position.\n\nEach solved word adds new letters. '
+                  'Rearrange them to climb the next rung.\n\n'
+                  'Hint shows the first and last letters of one possible word. '
+                  'There is no timer or penalty for using hints.',
+                ),
+                actions: [
+                  FilledButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Close'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
       body: SafeArea(
         child: _levels.isEmpty
@@ -304,13 +333,14 @@ class _LevelPageState extends State<LevelPage> {
                         ),
                       ],
                     ),
-                    Text(
-                      _selectedLetter == null
-                          ? 'Drag to reorder, or tap a letter then its new position. '
-                                'Each solved word adds new letters.'
-                          : 'Tap another position to move this letter there.',
-                      textAlign: TextAlign.center,
-                    ),
+                    if (_showInstructions || _selectedLetter != null)
+                      Text(
+                        _selectedLetter == null
+                            ? 'Drag to reorder, or tap a letter then its new position. '
+                                  'Each solved word adds new letters.'
+                            : 'Tap another position to move this letter there.',
+                        textAlign: TextAlign.center,
+                      ),
                   ],
                 ),
               ),
@@ -434,8 +464,23 @@ class _LevelPageState extends State<LevelPage> {
     setState(() {
       _selectedLetter = null;
       _newLetterIndices = {};
+      _showInstructions = false;
       activeLetters.insert(newIndex, activeLetters.removeAt(oldIndex));
     });
+    unawaited(
+      context.read<GameState>().markControlsLearned().catchError((
+        Object error,
+      ) {
+        debugPrint('Controls: could not save the learned preference: $error');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not save your controls preference.'),
+            ),
+          );
+        }
+      }),
+    );
     if (!currentLevel.words.contains(activeLetters.join()) &&
         context.read<GameState>().hapticsEnabled) {
       HapticFeedback.selectionClick();

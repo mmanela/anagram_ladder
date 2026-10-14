@@ -51,6 +51,19 @@ class GameState with ChangeNotifier {
   bool get hapticsEnabled =>
       _sharedPreferences?.getBool('hapticsEnabled') ?? true;
 
+  bool get controlsLearned =>
+      _sharedPreferences?.getBool('controlsLearned') ?? false;
+
+  Future<void> markControlsLearned() async {
+    if (controlsLearned) return;
+    final preferences = _sharedPreferences;
+    if (preferences == null) throw StateError('Game is not loaded');
+    if (!await preferences.setBool('controlsLearned', true)) {
+      throw StateError('Could not save the controls preference');
+    }
+    if (!_disposed) notifyListeners();
+  }
+
   Future<void> setHapticsEnabled(bool enabled) async {
     final preferences = _sharedPreferences;
     if (preferences == null) throw StateError('Game is not loaded');

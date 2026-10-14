@@ -28,6 +28,10 @@ puzzles, free hints, level access, and v5 saved-progress format.
 - Drag letters horizontally, or tap a letter and then its destination. Vertical
   swipes scroll the board instead of starting a drag. Screen readers expose
   letter positions and Move left / Move right actions.
+- Instructions disappear after the first successful move and stay hidden on
+  later visits. How to play remains available in the app bar; selecting a letter
+  still shows its contextual destination prompt. Resetting progress preserves
+  this learned-controls preference.
 - Solves animate for 320 ms, with a 180 ms pause before automatic cascades.
   Newly added letters briefly highlight for 700 ms, including repeated letters.
   Touching or rearranging the row clears the highlight.

@@ -263,6 +263,33 @@ void main() {
     );
   });
 
+  testWidgets('instructions disappear after a move and Help stays available', (
+    tester,
+  ) async {
+    setViewport(tester, const Size(400, 800));
+    final state = await openFixture(tester);
+    final instructions = find.textContaining(
+      'Drag to reorder, or tap a letter',
+    );
+    expect(instructions, findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('letter-0')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('letter-1')));
+    await tester.pumpAndSettle();
+    expect(state.controlsLearned, isTrue);
+    expect(instructions, findsNothing);
+    await tester.tap(find.byTooltip('How to play'));
+    await tester.pumpAndSettle();
+    expect(find.text('How to play'), findsOneWidget);
+    expect(find.textContaining('There is no timer or penalty'), findsOneWidget);
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(const SizedBox.shrink());
+    await openFixture(tester);
+    expect(instructions, findsNothing);
+    expect(find.byTooltip('How to play'), findsOneWidget);
+  });
+
   testWidgets('horizontal tile dragging still reorders and saves letters', (
     tester,
   ) async {
