@@ -384,7 +384,7 @@ void main() {
 
     final letter = tester.widget<Text>(find.text('a'));
     expect(letter.textScaler!.scale(30), 37.5);
-    expect(dimensions.boxWidth, closeTo(380 / 6, 0.001));
+    expect(dimensions.boxWidth, closeTo(368 / 6, 0.001));
     expect(tester.takeException(), isNull);
   });
 }

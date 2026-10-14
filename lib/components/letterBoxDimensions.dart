@@ -11,7 +11,7 @@ class LetterBoxDimensions {
   late double maxLetterBoxWidth;
   late double screenWidth;
   late double screenHeight;
-  final double outerPadding = 20;
+  final double outerPadding = 32;
   final double activeInfoBuffer = 50;
   late double effectiveMaxWidth;
   bool scrollNeeded = false;
@@ -28,11 +28,11 @@ class LetterBoxDimensions {
         min(deviceSize.width, MaxBoardWidth) -
         outerPadding -
         (media.padding.right + media.padding.left);
-    boxWidth = effectiveMaxWidth / world;
+    boxWidth = min(effectiveMaxWidth / world, 72);
     boxRatio = media.orientation == Orientation.portrait
         ? 7.0 / 5.0
         : 6.0 / 7.0;
-    boxHeight = boxWidth * boxRatio;
+    boxHeight = max(48, boxWidth * boxRatio);
     maxLetterBoxWidth = boxWidth * world;
     scrollNeeded =
         boxHeight * rungs + activeInfoBuffer + boxHeight > screenHeight;

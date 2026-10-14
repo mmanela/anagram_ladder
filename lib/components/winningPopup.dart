@@ -77,8 +77,7 @@ class _WinningPopupState extends State<WinningPopup> {
     bool isGameDone = gameState.isGameDone();
     final nav = context.read<GameRouteNavigator>();
 
-    final textScaler = MediaQuery.textScalerOf(context)
-        .clamp(maxScaleFactor: 1.25);
+    final textScaler = MediaQuery.textScalerOf(context);
     final double size = bigScreen ? 22 : 18;
     var label = "Level Complete!";
     if (widget.wasPlayed) {
@@ -99,6 +98,12 @@ class _WinningPopupState extends State<WinningPopup> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              Icon(
+                Icons.check_circle_rounded,
+                color: const Color(0xFF256144),
+                size: 48,
+              ),
+              const SizedBox(height: 12),
               Text(
                 label,
                 textAlign: TextAlign.center,
@@ -110,7 +115,7 @@ class _WinningPopupState extends State<WinningPopup> {
               ),
               const SizedBox(height: 24),
               if (hasNextLevel)
-                ElevatedButton(
+                FilledButton(
                   style: TextButton.styleFrom(
                     padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
                     textStyle: TextStyle(fontSize: size),

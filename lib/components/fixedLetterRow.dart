@@ -8,39 +8,53 @@ class FixedLetterRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    //print("Rendering fixed letter boxes");
-    List<Widget> boxes = List.empty(growable: true);
-    for (int index = 0; index < _letters.length; index++) {
-      final box = Container(
-        key: Key("$index"),
-        width: _dimensions.boxWidth,
-        child: Container(
-          child: Card(
-            margin: EdgeInsets.all(4),
-            elevation: 2,
-            child: Container(
-              color: Theme.of(context).focusColor,
-              child: Center(
-                child: Text(
-                  _letters[index],
-                  textScaler: _dimensions.textScaler,
-                  style: TextStyle(
-                    fontSize: _dimensions.boxFontSize,
-                    color: Colors.white,
+    final solved = _letters.any((letter) => letter.isNotEmpty);
+    final colors = Theme.of(context).colorScheme;
+    return Semantics(
+      label: solved
+          ? 'Solved word ${_letters.join()}'
+          : '${_letters.length}-letter rung',
+      child: ExcludeSemantics(
+        child: SizedBox(
+          height: _dimensions.boxHeight,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              for (final letter in _letters)
+                Container(
+                  width: _dimensions.boxWidth - 6,
+                  margin: const EdgeInsets.all(3),
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    color: solved
+                        ? const Color(0xFFE8F3EC)
+                        : colors.surfaceContainerLow,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: solved
+                          ? const Color(0xFFBDD8C7)
+                          : colors.outlineVariant,
+                    ),
+                  ),
+                  child: Center(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        letter,
+                        textScaler: _dimensions.textScaler,
+                        style: TextStyle(
+                          fontSize: _dimensions.boxFontSize,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF256144),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
+            ],
           ),
         ),
-      );
-
-      boxes.add(box);
-    }
-
-    return Container(
-      height: _dimensions.boxHeight,
-      child: ListView(scrollDirection: Axis.horizontal, children: boxes),
+      ),
     );
   }
 }

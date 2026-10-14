@@ -339,11 +339,8 @@ void main() {
       expect(find.byType(ReorderableListView), findsOneWidget);
       expect(state.getLevelState(6, 1).currentRung, 0);
       expect(tester.takeException(), isNull);
-      await tester.scrollUntilVisible(
-        find.text('Hint').hitTestable(),
-        100,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.ensureVisible(find.text('Hint'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Hint'));
       await tester.pumpAndSettle();
       expect(find.byType(HintDialog), findsOneWidget);

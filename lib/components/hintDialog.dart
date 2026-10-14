@@ -1,87 +1,68 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:more/collection.dart';
 
 class HintDialog extends StatelessWidget {
-  static Future show(BuildContext context, List<String> words, {Key? key}) =>
-      showDialog(
-        context: context,
-        useRootNavigator: false,
-        barrierDismissible: true,
-        builder: (_) => HintDialog(key: key, words: words),
-      ).then((res) {
-        FocusScope.of(context).requestFocus(FocusNode());
-        return res;
-      });
+  static Future<void> show(
+    BuildContext context,
+    List<String> words, {
+    Key? key,
+  }) => showDialog<void>(
+    context: context,
+    useRootNavigator: false,
+    barrierDismissible: true,
+    builder: (_) => HintDialog(key: key, words: words),
+  );
 
   static void hide(BuildContext context) => Navigator.pop(context);
 
   final List<String> words;
-  HintDialog({Key? key, required this.words}) : super(key: key);
+  HintDialog({super.key, required this.words});
 
   @override
   Widget build(BuildContext context) {
-    final textScaler = MediaQuery.textScalerOf(context)
-        .clamp(maxScaleFactor: 1.25);
-    final double heightBuffer = 100;
-    final double heightPerRow = textScaler.scale(55);
-    final totalHeight = heightPerRow * this.words.length + heightBuffer;
-    final size = MediaQuery.of(context).size;
-    final width = min(500.0, size.width - 50);
-    final height = min(totalHeight, size.height - 100);
+    final size = MediaQuery.sizeOf(context);
+    final textScaler = MediaQuery.textScalerOf(context);
     return Center(
       child: Card(
+        margin: const EdgeInsets.all(16),
         child: ConstrainedBox(
-          constraints: BoxConstraints(maxHeight: height, minHeight: 0),
-          child: Container(
-            width: width,
-            child: SingleChildScrollView(
-              padding: EdgeInsets.all(12.0),
-              child: _hintDialogContents(context, textScaler),
+          constraints: BoxConstraints(
+            maxHeight: max(0, size.height - 64),
+            maxWidth: 500,
+          ),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'A little nudge',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 12),
+                const Text('Reveal the first or last letter of any answer.'),
+                const SizedBox(height: 20),
+                for (var index = 0; index < words.length; index++)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: WordHintControl(
+                      possibility: index,
+                      word: words[index],
+                      textScaler: textScaler,
+                    ),
+                  ),
+                const SizedBox(height: 8),
+                FilledButton(
+                  onPressed: () => hide(context),
+                  child: const Text('Close'),
+                ),
+              ],
             ),
           ),
         ),
       ),
-    );
-  }
-
-  Widget _hintDialogContents(BuildContext context, TextScaler textScaler) {
-    final hints = words
-        .indices()
-        .map(
-          (i) => WordHintControl(
-            possibility: i,
-            word: words[i],
-            textScaler: textScaler,
-          ),
-        )
-        .toList();
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.start,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Center(
-          child: Text(
-            "Reveal the first and/or last letter of each of the possible words",
-            textScaler: textScaler,
-          ),
-        ),
-        const SizedBox(height: 10),
-        ...hints,
-        const SizedBox(height: 20),
-        ElevatedButton(
-          onPressed: () {
-            HintDialog.hide(context);
-          },
-          child: Text(
-            "Close",
-            textScaler: textScaler,
-            style: TextStyle(fontSize: 20),
-          ),
-        ),
-      ],
     );
   }
 }
@@ -91,103 +72,74 @@ class WordHintControl extends StatefulWidget {
   final int possibility;
   final TextScaler textScaler;
   WordHintControl({
-    Key? key,
+    super.key,
     required this.possibility,
     required this.word,
     required this.textScaler,
   });
 
   @override
-  State<StatefulWidget> createState() => _WordHintControlState();
+  State<WordHintControl> createState() => _WordHintControlState();
 }
 
 class _WordHintControlState extends State<WordHintControl> {
   bool showFirst = false;
   bool showLast = false;
 
+  Widget _reveal(BuildContext context, {required bool first}) {
+    final revealed = first ? showFirst : showLast;
+    final letter = first ? widget.word[0] : widget.word[widget.word.length - 1];
+    final label = first ? 'first' : 'last';
+    return Semantics(
+      liveRegion: revealed,
+      label: revealed ? '$label letter: $letter' : null,
+      child: revealed
+          ? Container(
+              alignment: Alignment.center,
+              constraints: const BoxConstraints(minHeight: 48),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                letter,
+                textScaler: widget.textScaler,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            )
+          : OutlinedButton(
+              onPressed: () => setState(() {
+                if (first) {
+                  showFirst = true;
+                } else {
+                  showLast = true;
+                }
+              }),
+              child: Text('Show $label', textScaler: widget.textScaler),
+            ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    const double size = 17;
-    const double labelSize = 15;
-    const double letterSize = 19;
-    const double rowHeight = 40;
-    const style = TextStyle(fontSize: size);
-    const letterStyle = TextStyle(
-      fontSize: letterSize,
-      fontWeight: FontWeight.bold,
-    );
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          "Word ${widget.possibility + 1}",
-          textScaler: this.widget.textScaler,
-          style: const TextStyle(
-            fontSize: labelSize,
-            fontWeight: FontWeight.bold,
-          ),
+          'Word ${widget.possibility + 1}',
+          textScaler: widget.textScaler,
+          style: const TextStyle(fontWeight: FontWeight.w600),
         ),
-        SizedBox(width: 10),
-        Flexible(
-          child: Center(
-            child: showFirst
-                ? ConstrainedBox(
-                    constraints: BoxConstraints(minHeight: rowHeight),
-                    child: Center(
-                      child: Text(
-                        this.widget.word[0],
-                        textScaler: this.widget.textScaler,
-                        style: letterStyle,
-                      ),
-                    ),
-                  )
-                : ConstrainedBox(
-                    constraints: BoxConstraints(minHeight: rowHeight),
-                    child: TextButton(
-                      style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                      onPressed: () {
-                        setState(() {
-                          showFirst = true;
-                        });
-                      },
-                      child: Text(
-                        "Show first",
-                        textScaler: this.widget.textScaler,
-                        style: style,
-                      ),
-                    ),
-                  ),
-          ),
-        ),
-        Flexible(
-          child: Center(
-            child: showLast
-                ? ConstrainedBox(
-                    constraints: BoxConstraints(minHeight: rowHeight),
-                    child: Center(
-                      child: Text(
-                        this.widget.word[this.widget.word.length - 1],
-                        textScaler: this.widget.textScaler,
-                        style: letterStyle,
-                      ),
-                    ),
-                  )
-                : ConstrainedBox(
-                    constraints: BoxConstraints(minHeight: rowHeight),
-                    child: TextButton(
-                      style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                      onPressed: () {
-                        setState(() {
-                          showLast = true;
-                        });
-                      },
-                      child: Text(
-                        "Show last",
-                        textScaler: this.widget.textScaler,
-                        style: style,
-                      ),
-                    ),
-                  ),
-          ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(child: _reveal(context, first: true)),
+            const SizedBox(width: 12),
+            Expanded(child: _reveal(context, first: false)),
+          ],
         ),
       ],
     );
