@@ -525,6 +525,7 @@ class _LevelPageState extends State<LevelPage> {
                   width: selected ? 2 : 1 + highlight,
                 ),
               ),
+              child: child,
             ),
             child: Center(
               child: FittedBox(

@@ -125,12 +125,48 @@ Future<void> finishAnimation(WidgetTester tester) async {
   await tester.pump();
 }
 
+void expectVisibleActiveLetters(WidgetTester tester, List<String> letters) {
+  for (var index = 0; index < letters.length; index++) {
+    final text = find.descendant(
+      of: find.byKey(ValueKey('letter-$index')),
+      matching: find.text(letters[index]),
+    );
+    expect(text, findsOneWidget, reason: 'Tile $index must show its letter');
+    expect(tester.getSize(text).isEmpty, isFalse);
+    expect(text.hitTestable(), findsOneWidget);
+  }
+}
+
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
     final wasFatal = WidgetController.hitTestWarningShouldBeFatal;
     WidgetController.hitTestWarningShouldBeFatal = true;
     addTearDown(() => WidgetController.hitTestWarningShouldBeFatal = wasFatal);
+  });
+
+  testWidgets('active tiles render letters before and after moving them', (
+    tester,
+  ) async {
+    setViewport(tester, const Size(400, 800));
+    final state = await openFixture(tester);
+    expectVisibleActiveLetters(
+      tester,
+      state.getLevelState(6, 1).levelLetters.first,
+    );
+    await tester.tap(find.byKey(const ValueKey('letter-0')));
+    await tester.pumpAndSettle();
+    expectVisibleActiveLetters(
+      tester,
+      state.getLevelState(6, 1).levelLetters.first,
+    );
+    await tester.tap(find.byKey(const ValueKey('letter-1')));
+    await tester.pumpAndSettle();
+    expect(state.getLevelState(6, 1).levelLetters.first.join(), 'atrs');
+    expectVisibleActiveLetters(
+      tester,
+      state.getLevelState(6, 1).levelLetters.first,
+    );
   });
 
   testWidgets('a solved word automatically cascades through successive rungs', (
@@ -202,6 +238,7 @@ void main() {
       await arrangeWord(tester, state, 'star');
       await finishAnimation(tester);
       expect(state.getLevelState(6, 1).levelLetters[1].join(), 'stara');
+      expectVisibleActiveLetters(tester, 'stara'.split(''));
       final pulse = tester.widget<TweenAnimationBuilder<double>>(
         find.byKey(const ValueKey('new-letter-1-4-true')),
       );
@@ -230,6 +267,7 @@ void main() {
             .color,
         colors.surfaceContainerLowest,
       );
+      expectVisibleActiveLetters(tester, 'stara'.split(''));
       await tester.tap(find.byKey(const ValueKey('letter-0')));
       await tester.pump();
       expect(find.byKey(const ValueKey('new-letter-1-4-true')), findsNothing);
@@ -521,6 +559,10 @@ void main() {
     );
     expect(pulse.duration, Duration.zero);
     expect(pulse.tween.begin, 0);
+    expectVisibleActiveLetters(
+      tester,
+      state.getLevelState(6, 1).levelLetters[1],
+    );
     expect(tester.takeException(), isNull);
   });
 

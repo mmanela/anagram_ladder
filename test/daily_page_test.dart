@@ -19,7 +19,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'level_page_test.dart' show setViewport;
+import 'level_page_test.dart' show setViewport, expectVisibleActiveLetters;
 import 'widget_test.dart' show startGame;
 
 Future<GameState> startDailyAt(
@@ -124,6 +124,11 @@ void main() {
       await showDaily(tester);
       expect(tester.widget<LevelPage>(find.byType(LevelPage)).world, world);
       expect(game.getDailyState(day).world, world);
+      final progress = game.getDailyState(day);
+      expectVisibleActiveLetters(
+        tester,
+        progress.levelLetters[progress.currentRung],
+      );
       await tester.pageBack();
       await tester.pumpAndSettle();
       final ladder = await seedDailyFinal(game, day, completed: true);

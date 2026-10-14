@@ -145,7 +145,8 @@ visibility of difficulty before play and in results, legacy Normal saves,
 direct daily entry and return home, deterministic selection, midnight and resume rollover,
 isolated saves, completion credit after replay, reset, malformed saves and routes,
 spoiler-free sharing, copy and failure feedback, and small-screen/large-text
-daily and completion layouts. Highlight tests include duplicate new letters
+daily and completion layouts. Active-tile regressions verify that letter text is
+rendered and visible, not only stored in game state. Highlight tests include duplicate new letters
 and reduced motion; instruction tests cover learning and Help on later visits.
 
 Model tests cover saved progress, completion counts, reset, next-level selection
