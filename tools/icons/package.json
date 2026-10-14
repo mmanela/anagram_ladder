@@ -1,0 +1,11 @@
+{
+  "name": "anagram-ladder-icons",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "generate": "node generate.mjs"
+  },
+  "dependencies": {
+    "sharp": "0.34.5"
+  }
+}
