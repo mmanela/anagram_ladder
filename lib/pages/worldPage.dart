@@ -1,190 +1,164 @@
+import 'dart:math';
 
 import 'package:anagram_ladder/models/gameState.dart';
 import 'package:anagram_ladder/navigation/gameRouteNavigator.dart';
 import 'package:anagram_ladder/navigation/gameRoutePath.dart';
-import 'package:anagram_ladder/utils/screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-class WorldPage extends StatefulWidget {
+class WorldPage extends StatelessWidget {
   final int world;
 
   WorldPage(this.world);
 
   @override
-  State<StatefulWidget> createState() => _WorldPageState();
-}
-
-class _WorldPageState extends State<WorldPage> {
-  bool isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-
-    final state = context.read<GameState>();
-
-    // Pre-load the world
-    state.getWorldOrLoad(widget.world).then((value) {
-      setState(() {
-        isLoading = false;
-      });
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final label = GameState.worldLabels[widget.world];
+    final game = context.watch<GameState>();
+    final navigation = context.read<GameRouteNavigator>();
+    final info = game.getWorldCompletionInfo(world);
+    final colors = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text("$label Ladders")),
+      appBar: AppBar(title: Text('${GameState.worldLabels[world]} Ladders')),
       body: SafeArea(
-        child: Container(
-          padding: EdgeInsets.only(bottom: 0, top: 5),
-          child: Center(
-            child: isLoading
-                ? CircularProgressIndicator(semanticsLabel: "Loading...")
-                : _gridView(context),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _gridView(BuildContext context) {
-    final isPortrait = shouldTreatAsPortrait(context);
-    final nav = context.read<GameRouteNavigator>();
-    final gameState = context.read<GameState>();
-    final advertiseMoreLevels = gameState.shouldAdverstiseMoreLevels;
-    final maxLevelCount = gameState.maxLevelsPerWorld;
-
-    return GridView.builder(
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: isPortrait ? 4 : 6,
-        childAspectRatio: 1,
-      ),
-      itemCount: advertiseMoreLevels ? maxLevelCount + 1 : maxLevelCount,
-      itemBuilder: (BuildContext ctx, index) {
-        return Center(
-          child: index == maxLevelCount
-              ? Padding(
-                  padding: const EdgeInsets.all(10),
-                  child: AspectRatio(
-                    aspectRatio: 1,
-                    child: _advertiseButton(context, nav),
-                  ),
-                )
-              : Padding(
-                  padding: const EdgeInsets.all(10),
-                  child: AspectRatio(
-                    aspectRatio: 1,
-                    child: _levelButton(context, index + 1, nav, gameState),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 840),
+            child: CustomScrollView(
+              slivers: [
+                SliverPadding(
+                  padding: const EdgeInsets.all(20),
+                  sliver: SliverToBoxAdapter(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${info.completedCount} of ${info.levelCount} complete',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 12),
+                        LinearProgressIndicator(value: info.percent),
+                        const SizedBox(height: 12),
+                        const Text('Pick any ladder. Your place is saved.'),
+                      ],
+                    ),
                   ),
                 ),
-        );
-      },
-    );
-  }
-
-  Widget _advertiseButton(BuildContext context, GameRouteNavigator nav) {
-    final textScaler = MediaQuery.textScalerOf(context)
-        .clamp(maxScaleFactor: 1.0);
-    return OutlinedButton(
-      onPressed: () {
-        nav.goto(
-          GameRoutePath.pay(source: GameRoutePage.World, world: widget.world),
-        );
-      },
-      style: OutlinedButton.styleFrom(
-        padding: EdgeInsets.all(0),
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(10)),
-        ),
-        side: BorderSide(color: Colors.green),
-      ),
-      child: Ink(
-        decoration: BoxDecoration(
-          shape: BoxShape.rectangle,
-          borderRadius: const BorderRadius.all(Radius.circular(10)),
-        ),
-        child: Container(
-          alignment: Alignment.center,
-          padding: EdgeInsets.all(2),
-          child: Text(
-            'Unlock more levels!',
-            textScaler: textScaler,
-            style: Theme.of(context).textTheme.titleLarge,
-            textAlign: TextAlign.center,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _levelButton(
-    BuildContext context,
-    int index,
-    GameRouteNavigator nav,
-    GameState gameState,
-  ) {
-    final textScaler = MediaQuery.textScalerOf(context)
-        .clamp(maxScaleFactor: 1.5);
-    final levelState = gameState.getLevelState(widget.world, index);
-
-    final filledSegments = (levelState.percentComplete * 10).round();
-    final colorSegments = List.generate(
-      10,
-      (index) => index < filledSegments ? Colors.lightGreen : Colors.white,
-    );
-
-    final partialGradienDcoration = BoxDecoration(
-      shape: BoxShape.rectangle,
-      borderRadius: const BorderRadius.all(Radius.circular(10)),
-      gradient: LinearGradient(
-        begin: Alignment.centerLeft,
-        end: Alignment.centerRight,
-        colors: colorSegments,
-      ),
-    );
-
-    final gradientDecoration = const BoxDecoration(
-      shape: BoxShape.rectangle,
-      borderRadius: const BorderRadius.all(Radius.circular(10)),
-      gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        stops: [0, 0.3, 0.5, 0.8, 1],
-        colors: [
-          Color(0xFFBF953F),
-          Color(0xFFFCF6BA),
-          Color(0xFFB38728),
-          Color(0xFFFBF5B7),
-          Color(0xFFAA771C),
-        ],
-      ),
-    );
-
-    return OutlinedButton(
-      onPressed: () {
-        nav.goto(GameRoutePath.level(widget.world, index));
-      },
-      style: OutlinedButton.styleFrom(
-        padding: EdgeInsets.all(0),
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(10)),
-        ),
-        side: BorderSide(color: Theme.of(context).primaryColor),
-      ),
-      child: Ink(
-        decoration: levelState.isWon
-            ? gradientDecoration
-            : partialGradienDcoration,
-        child: Container(
-          alignment: Alignment.center,
-          child: Text(
-            '$index',
-            textScaler: textScaler,
-            style: Theme.of(context).textTheme.headlineSmall,
-            textAlign: TextAlign.center,
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  sliver: SliverLayoutBuilder(
+                    builder: (context, constraints) {
+                      final extent = max(
+                        96.0,
+                        MediaQuery.textScalerOf(context).scale(28) + 68,
+                      );
+                      final columns = max(
+                        1,
+                        (constraints.crossAxisExtent / extent).floor(),
+                      );
+                      return SliverGrid(
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: columns,
+                          mainAxisSpacing: 10,
+                          crossAxisSpacing: 10,
+                        ),
+                        delegate: SliverChildBuilderDelegate((context, index) {
+                          final level = index + 1;
+                          final progress = game.getLevelState(world, level);
+                          final started = !progress.isEmpty;
+                          final status = progress.isWon
+                              ? 'completed'
+                              : started
+                              ? '${progress.currentRung} of '
+                                    '${progress.rungCount} rungs solved'
+                              : 'not started';
+                          void open() => navigation.goto(
+                            GameRoutePath.level(world, level),
+                          );
+                          return Semantics(
+                            button: true,
+                            label: 'Ladder $level, $status',
+                            onTap: open,
+                            child: ExcludeSemantics(
+                              child: Card(
+                                color: progress.isWon
+                                    ? const Color(0xFFE8F3EC)
+                                    : started
+                                    ? colors.primaryContainer
+                                    : null,
+                                clipBehavior: Clip.antiAlias,
+                                child: InkWell(
+                                  onTap: open,
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(12),
+                                    child: Column(
+                                      children: [
+                                        Expanded(
+                                          child: FittedBox(
+                                            fit: BoxFit.scaleDown,
+                                            child: Text(
+                                              '$level',
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .headlineSmall
+                                                  ?.copyWith(
+                                                    fontWeight: FontWeight.w700,
+                                                    color: progress.isWon
+                                                        ? const Color(
+                                                            0xFF256144,
+                                                          )
+                                                        : colors.onSurface,
+                                                  ),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        if (progress.isWon)
+                                          const Icon(
+                                            Icons.check_circle_rounded,
+                                            color: Color(0xFF256144),
+                                            size: 20,
+                                          )
+                                        else
+                                          LinearProgressIndicator(
+                                            value: started
+                                                ? progress.percentComplete
+                                                : 0,
+                                            minHeight: 4,
+                                            borderRadius: BorderRadius.circular(
+                                              4,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        }, childCount: game.maxLevelsPerWorld),
+                      );
+                    },
+                  ),
+                ),
+                if (game.shouldAdverstiseMoreLevels)
+                  SliverPadding(
+                    padding: const EdgeInsets.all(20),
+                    sliver: SliverToBoxAdapter(
+                      child: OutlinedButton.icon(
+                        onPressed: () => navigation.goto(
+                          GameRoutePath.pay(
+                            source: GameRoutePage.World,
+                            world: world,
+                          ),
+                        ),
+                        icon: const Icon(Icons.add),
+                        label: const Text('Unlock more levels'),
+                      ),
+                    ),
+                  ),
+                const SliverToBoxAdapter(child: SizedBox(height: 20)),
+              ],
+            ),
           ),
         ),
       ),

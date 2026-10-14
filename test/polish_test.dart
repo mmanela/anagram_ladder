@@ -1,5 +1,7 @@
 import 'package:anagram_ladder/models/gameState.dart';
 import 'package:anagram_ladder/models/levelState.dart';
+import 'package:anagram_ladder/navigation/gameRouteNavigator.dart';
+import 'package:anagram_ladder/navigation/gameRoutePath.dart';
 import 'package:anagram_ladder/pages/levelPage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -7,6 +9,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'level_page_test.dart' show setViewport;
+import 'game_state_test.dart' show completedLevel;
 import 'widget_test.dart' show startGame;
 
 void main() {
@@ -50,6 +53,32 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text(label).hitTestable(), findsOneWidget);
       expect(tester.takeException(), isNull);
+    }
+  }, variant: TargetPlatformVariant.only(TargetPlatform.android));
+
+  testWidgets('level selection names completed, partial, and new ladders', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    try {
+      await startGame(tester);
+      final context = tester.element(find.text('Play'));
+      final state = context.read<GameState>();
+      await state.persistLevelState(await completedLevel(state, 6, 1));
+      final partial = await completedLevel(state, 6, 2);
+      partial.currentRung = 1;
+      await state.persistLevelState(partial);
+      context.read<GameRouteNavigator>().goto(GameRoutePath.world(6));
+      await tester.pumpAndSettle();
+      expect(find.bySemanticsLabel('Ladder 1, completed'), findsOneWidget);
+      expect(
+        find.bySemanticsLabel('Ladder 2, 1 of 3 rungs solved'),
+        findsOneWidget,
+      );
+      expect(find.bySemanticsLabel('Ladder 3, not started'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    } finally {
+      semantics.dispose();
     }
   }, variant: TargetPlatformVariant.only(TargetPlatform.android));
 }
