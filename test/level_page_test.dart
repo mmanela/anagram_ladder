@@ -122,7 +122,16 @@ Future<void> arrangeWord(
 }
 
 Future<void> finishAnimation(WidgetTester tester) async {
-  await tester.pump(LevelPage.solveDuration);
+  final page = tester.widget<LevelPage>(find.byType(LevelPage));
+  final progress = tester
+      .element(find.byType(LevelPage))
+      .read<GameState>()
+      .getLevelState(page.world, page.level);
+  await tester.pump(
+    progress.currentRung == progress.rungCount - 1
+        ? LevelPage.finishDuration
+        : LevelPage.solveDuration,
+  );
   await tester.pump();
   if (find.byType(RungTransition).evaluate().isNotEmpty) {
     await tester.pump(
@@ -182,7 +191,9 @@ void main() {
     setViewport(tester, const Size(900, 1200), textScale: 0.75);
     final state = await openFixture(tester);
     await arrangeWord(tester, state, 'star');
-    await tester.pump(const Duration(milliseconds: 319));
+    await tester.pump(
+      LevelPage.solveDuration - const Duration(milliseconds: 1),
+    );
     expect(state.getLevelState(6, 1).currentRung, 0);
     await tester.pump(const Duration(milliseconds: 1));
     await tester.pump();
@@ -195,7 +206,7 @@ void main() {
     );
     await tester.pump();
     expect(find.byType(RungTransition), findsNothing);
-    await tester.pump(const Duration(milliseconds: 179));
+    await tester.pump(LevelPage.cascadeDelay - const Duration(milliseconds: 1));
     expect(state.getLevelState(6, 1).currentRung, 1);
     await tester.pump(const Duration(milliseconds: 1));
     await finishAnimation(tester);
@@ -268,7 +279,7 @@ void main() {
             .opacity,
         0,
       );
-      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(RungTransition.duration ~/ 4);
       expect(tester.getRect(moving).top, lessThan(source.top));
       expect(tester.getRect(moving).width, lessThan(source.width));
       expect(
@@ -279,7 +290,7 @@ void main() {
             .opacity,
         0,
       );
-      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(RungTransition.duration ~/ 4);
       expect(
         tester
             .widget<Opacity>(
@@ -303,7 +314,9 @@ void main() {
             .onPressed,
         isNull,
       );
-      await tester.pump(const Duration(milliseconds: 221));
+      await tester.pump(
+        RungTransition.duration ~/ 2 + const Duration(milliseconds: 1),
+      );
       await tester.pump();
       expect(find.byType(RungTransition), findsNothing);
       expectVisibleActiveLetters(tester, 'stara'.split(''));

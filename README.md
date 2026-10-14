@@ -33,12 +33,13 @@ puzzles, free hints, level access, and v5 saved-progress format.
   later visits. How to play remains available in the app bar; selecting a letter
   still shows its contextual destination prompt. Resetting progress preserves
   this learned-controls preference.
-- Solves confirm for 320 ms, then the existing letters move up and resize into
+- Solves confirm for 380 ms, then the existing letters move up and resize into
   the next rung while new letters drop onto the end with a small bounce.
-  The transition lasts 420 ms; multiple added letters are slightly staggered.
+  The transition lasts 560 ms; multiple added letters are slightly staggered.
   Rearranging, Shuffle, and Hint pause during the transition. Progress saves
   before the motion finishes, and automatic cascades wait until after landing,
-  followed by a 180 ms pause. The final rung goes straight to completion.
+  followed by a 240 ms pause. The final solved word stays visible for 600 ms
+  before showing completion, without a climb or letter drop.
   The system reduced-motion setting disables these delays, animated scrolling,
   and confetti.
 - Hints appear only when requested, in a compact popup for one possible answer.

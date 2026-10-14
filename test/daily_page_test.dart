@@ -333,6 +333,14 @@ void main() {
       tester
           .widget<ReorderableListView>(find.byType(ReorderableListView))
           .onReorderItem!(ladder.letterCount - 1, 0);
+      await tester.pump();
+      await tester.pump(
+        LevelPage.finishDuration - const Duration(milliseconds: 1),
+      );
+      expect(find.byType(DailyResultCard), findsNothing);
+      expect(game.isDailyCompleted(day), isFalse);
+      expect(find.text('Word found!'), findsOneWidget);
+      await tester.pump(const Duration(milliseconds: 1));
       await tester.pumpAndSettle();
       expect(find.byType(DailyResultCard), findsOneWidget);
       expect(game.isDailyCompleted(day), isTrue);

@@ -186,8 +186,11 @@ void main() {
     );
     reorderable.onReorderItem!(ladder.letterCount - 1, 0);
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 319));
+    await tester.pump(
+      LevelPage.finishDuration - const Duration(milliseconds: 1),
+    );
     expect(find.byType(WinningPopup), findsNothing);
+    expect(find.text('Word found!'), findsOneWidget);
 
     await tester.pump(const Duration(milliseconds: 1));
     await tester.pump();

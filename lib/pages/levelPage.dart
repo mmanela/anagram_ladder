@@ -20,8 +20,9 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 class LevelPage extends StatefulWidget {
-  static const solveDuration = Duration(milliseconds: 320);
-  static const cascadeDelay = Duration(milliseconds: 180);
+  static const solveDuration = Duration(milliseconds: 380);
+  static const finishDuration = Duration(milliseconds: 600);
+  static const cascadeDelay = Duration(milliseconds: 240);
   final int world;
   final int level;
   final DailyChallenge? daily;
@@ -61,6 +62,8 @@ class _LevelPageState extends State<LevelPage>
   Timer? _cascadeTimer;
   Duration get _solveDuration => MediaQuery.disableAnimationsOf(context)
       ? Duration.zero
+      : _levelComplete && _currentRung == _levels.length - 1
+      ? LevelPage.finishDuration
       : LevelPage.solveDuration;
   Duration get _cascadeDelay => MediaQuery.disableAnimationsOf(context)
       ? Duration.zero

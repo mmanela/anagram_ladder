@@ -3,7 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 class RungTransition extends AnimatedWidget {
-  static const duration = Duration(milliseconds: 420);
+  static const duration = Duration(milliseconds: 560);
 
   final Rect from;
   final Rect to;
