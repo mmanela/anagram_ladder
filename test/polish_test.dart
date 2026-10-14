@@ -70,6 +70,16 @@ void main() {
     }
   }, variant: TargetPlatformVariant.only(TargetPlatform.android));
 
+  testWidgets('home uses the chosen tagline and simple daily wording', (
+    tester,
+  ) async {
+    await startGame(tester);
+    expect(find.text('Rearrange.\nSolve. Climb.'), findsOneWidget);
+    expect(find.text('One word.\nA little higher.'), findsNothing);
+    expect(find.text('A Normal ladder each day.'), findsOneWidget);
+    expect(find.textContaining('free Normal ladder'), findsNothing);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.android));
+
   testWidgets('a loading store does not block home or free ladders', (
     tester,
   ) async {

@@ -48,7 +48,7 @@ class HomePage extends StatelessWidget {
                   ),
                   const SizedBox(height: 48),
                   Text(
-                    'One word.\nA little higher.',
+                    'Rearrange.\nSolve. Climb.',
                     style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                       fontWeight: FontWeight.w800,
                       height: 1.15,
