@@ -26,11 +26,7 @@ puzzles, free hints, level access, and v5 saved-progress format.
 - Solves animate for 320 ms, with a 180 ms pause before automatic cascades.
   The system reduced-motion setting disables these delays, animated scrolling,
   and confetti.
-- Hints expand inline below the letter controls without blocking play. Browse
-  one answer at a time and tap its first or last tile to reveal that letter.
-  Collapsing the panel keeps its reveals while you play the current rung;
-  advancing, restarting, or leaving the ladder clears them.
-  Hints and completion controls support scrolling and large text. Letter glyphs
+- Hints and completion controls scroll and support large text. Letter glyphs
   retain a scaling cap so ten-letter words still fit narrow phones.
 - Settings includes optional haptic feedback, email feedback, a confirmed
   progress reset, and version information. Resetting progress preserves the
@@ -83,8 +79,8 @@ GitHub Actions runs analysis, regression tests, and Android, iOS simulator, and 
 builds. Widget tests check that completion appears after the final-rung animation,
 restart dismisses the popup immediately, reset progress survives reopening, and
 Next Level opens a playable board. They also cover full-ladder play, automatic
-cascades (including edits during the cascade delay), replay after restart, inline
-hint reveals and collapse, answer browsing, and saved progress when leaving during an
+cascades (including edits during the cascade delay), replay after restart, hint
+reveals and dismissal, long hint lists, and saved progress when leaving during an
 animation. Small-phone, landscape, and large-text tests verify that gameplay and
 dialog controls remain usable without layout overflows. Additional regressions
 cover Continue, real horizontal dragging, vertical scrolling over tiles,

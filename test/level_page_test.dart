@@ -1,5 +1,5 @@
 import 'package:anagram_ladder/anagram/ladderLevel.dart';
-import 'package:anagram_ladder/components/hintPanel.dart';
+import 'package:anagram_ladder/components/hintDialog.dart';
 import 'package:anagram_ladder/components/winningPopup.dart';
 import 'package:anagram_ladder/models/gameState.dart';
 import 'package:anagram_ladder/models/gameStore.dart';
@@ -351,7 +351,7 @@ void main() {
     }
   });
 
-  testWidgets('inline hints retain reveals without blocking letter moves', (
+  testWidgets('hints reveal only selected letters and reset when reopened', (
     tester,
   ) async {
     setViewport(tester, const Size(900, 1200), textScale: 0.75);
@@ -359,220 +359,89 @@ void main() {
     final before = state.getLevelState(6, 1).levelLetters;
     await tester.tap(find.text('Hint'));
     await tester.pumpAndSettle();
-    final panel = find.byType(HintPanel);
-    final first = find.byKey(const ValueKey('hint-first'));
-    final last = find.byKey(const ValueKey('hint-last'));
-    expect(panel, findsOneWidget);
-    expect(find.text('Answer 1 of 2'), findsOneWidget);
-    expect(
-      find.descendant(of: panel, matching: find.text('?')),
-      findsNWidgets(2),
+    final hints = find.byType(WordHintControl);
+    expect(hints, findsNWidgets(2));
+    await tester.tap(
+      find.descendant(of: hints.first, matching: find.text('Show first')),
     );
-    await tester.tap(first);
     await tester.pump();
     expect(
-      find.descendant(of: first, matching: find.text('s')),
+      find.descendant(of: hints.first, matching: find.text('s')),
       findsOneWidget,
     );
-    expect(find.descendant(of: last, matching: find.text('?')), findsOneWidget);
-    await tester.tap(find.byTooltip('Next answer'));
-    await tester.pump();
-    expect(find.text('Answer 2 of 2'), findsOneWidget);
     expect(
-      find.descendant(of: panel, matching: find.text('?')),
-      findsNWidgets(2),
-    );
-    await tester.tap(last);
-    await tester.pump();
-    expect(find.descendant(of: last, matching: find.text('s')), findsOneWidget);
-    await tester.tap(find.byTooltip('Previous answer'));
-    await tester.pump();
-    expect(
-      find.descendant(of: first, matching: find.text('s')),
+      find.descendant(of: hints.first, matching: find.text('Show last')),
       findsOneWidget,
     );
-    expect(find.descendant(of: last, matching: find.text('?')), findsOneWidget);
-    await tester.tap(last);
+    expect(
+      find.descendant(of: hints.last, matching: find.text('Show first')),
+      findsOneWidget,
+    );
+    await tester.tap(
+      find.descendant(of: hints.first, matching: find.text('Show last')),
+    );
     await tester.pump();
-    expect(find.descendant(of: last, matching: find.text('r')), findsOneWidget);
-    expect(find.text('star'), findsNothing);
+    expect(
+      find.descendant(of: hints.first, matching: find.text('r')),
+      findsOneWidget,
+    );
+    await tester.ensureVisible(find.text('Close'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+    expect(find.byType(HintDialog), findsNothing);
+    expect(state.getLevelState(6, 1).currentRung, 0);
     expect(state.getLevelState(6, 1).levelLetters, before);
-    await tester.tap(find.text('Hide hint'));
-    await tester.pumpAndSettle();
-    expect(panel, findsNothing);
+
     await tester.tap(find.text('Hint'));
     await tester.pumpAndSettle();
-    expect(
-      find.descendant(of: first, matching: find.text('s')),
-      findsOneWidget,
-    );
-    expect(find.descendant(of: last, matching: find.text('r')), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('letter-0')));
-    await tester.pump();
-    await tester.tap(find.byKey(const ValueKey('letter-1')));
-    await tester.pump();
-    expect(panel, findsOneWidget);
-    expect(state.getLevelState(6, 1).currentRung, 0);
-    expect(state.getLevelState(6, 1).levelLetters.first.join(), 'atrs');
-    expect(
-      find.descendant(of: first, matching: find.text('s')),
-      findsOneWidget,
-    );
-    await tester.tap(find.text('Shuffle'));
-    await tester.pump();
-    expect(panel, findsOneWidget);
-    expect(
-      find.descendant(of: first, matching: find.text('s')),
-      findsOneWidget,
-    );
+    expect(find.text('Show first'), findsNWidgets(2));
+    expect(find.text('Show last'), findsNWidgets(2));
+    await tester.tapAt(const Offset(5, 5));
+    await tester.pumpAndSettle();
+    expect(find.byType(HintDialog), findsNothing);
     expect(find.byType(ReorderableListView), findsOneWidget);
+    expect(state.getLevelState(6, 1).levelLetters, before);
   });
 
-  testWidgets('hints close and clear when advancing or restarting a ladder', (
-    tester,
-  ) async {
-    setViewport(tester, const Size(900, 1200), textScale: 0.75);
-    final state = await openFixture(
-      tester,
-      middleWords: ['rates'],
-      finalWord: 'trades',
-    );
-    await tester.tap(find.text('Hint'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('hint-first')));
-    await tester.tap(find.byTooltip('Next answer'));
-    await tester.pump();
-    await arrangeWord(tester, state, 'star');
-    await finishAnimation(tester);
-    expect(state.getLevelState(6, 1).currentRung, 1);
-    expect(find.byType(HintPanel), findsNothing);
-    await tester.tap(find.text('Hint'));
-    await tester.pumpAndSettle();
-    expect(find.text('Answer hint'), findsOneWidget);
-    expect(find.byTooltip('Next answer'), findsNothing);
-    expect(
-      find.descendant(of: find.byType(HintPanel), matching: find.text('?')),
-      findsNWidgets(2),
-    );
-    await tester.tap(find.byKey(const ValueKey('hint-first')));
-    await tester.pump();
-    expect(
-      find.descendant(of: find.byType(HintPanel), matching: find.text('r')),
-      findsOneWidget,
-    );
-    await arrangeWord(tester, state, 'rates');
-    await finishAnimation(tester);
-    await arrangeWord(tester, state, 'trades');
-    await finishAnimation(tester);
-    await tester.tap(find.text('Restart'));
-    await tester.pumpAndSettle();
-    expect(state.getLevelState(6, 1).currentRung, 0);
-    expect(find.byType(HintPanel), findsNothing);
-    await tester.tap(find.text('Hint'));
-    await tester.pumpAndSettle();
-    expect(find.text('Answer 1 of 2'), findsOneWidget);
-    expect(
-      find.descendant(of: find.byType(HintPanel), matching: find.text('?')),
-      findsNWidgets(2),
-    );
-  });
-
-  testWidgets('many answers keep hints compact and support large text', (
+  testWidgets('a long hint list scrolls to its last word and close button', (
     tester,
   ) async {
     setViewport(tester, const Size(320, 568), textScale: 3);
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: HintPanel(words: List.filled(30, 'abcdefghij')),
+          body: Builder(
+            builder: (context) => TextButton(
+              onPressed: () =>
+                  HintDialog.show(context, List.filled(30, 'star')),
+              child: const Text('Hints'),
             ),
           ),
         ),
       ),
     );
+    await tester.tap(find.text('Hints'));
     await tester.pumpAndSettle();
-    final first = find.byKey(const ValueKey('hint-first'));
-    final last = find.byKey(const ValueKey('hint-last'));
-    await tester.ensureVisible(first);
-    await tester.pumpAndSettle();
-    await tester.tap(first);
-    await tester.pump();
-    for (var answer = 1; answer < 30; answer++) {
-      await tester.ensureVisible(find.byTooltip('Next answer'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Next answer'));
-      await tester.pump();
-    }
-    expect(find.text('Answer 30 of 30'), findsOneWidget);
-    expect(
-      tester
-          .widget<IconButton>(
-            find.byWidgetPredicate(
-              (widget) =>
-                  widget is IconButton && widget.tooltip == 'Next answer',
-            ),
-          )
-          .onPressed,
-      isNull,
+    final lastHint = find.byType(WordHintControl).last;
+    final lastReveal = find.descendant(
+      of: lastHint,
+      matching: find.text('Show last'),
     );
-    expect(find.text('?'), findsNWidgets(2));
-    expect(find.text('_ _ _ _ _ _ _ _'), findsOneWidget);
-    await tester.ensureVisible(last);
+    await tester.ensureVisible(lastReveal);
     await tester.pumpAndSettle();
-    expect(tester.getSize(last).width, greaterThanOrEqualTo(48));
-    expect(tester.getSize(last).height, greaterThanOrEqualTo(48));
-    await tester.tap(last);
+    await tester.tap(lastReveal);
+    await tester.pump();
+    expect(
+      find.descendant(of: lastHint, matching: find.text('r')),
+      findsOneWidget,
+    );
+    await tester.ensureVisible(find.text('Close'));
     await tester.pumpAndSettle();
-    expect(find.descendant(of: last, matching: find.text('j')), findsOneWidget);
-    expect(tester.getSize(find.byType(HintPanel)).height, lessThan(568));
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+    expect(find.byType(HintDialog), findsNothing);
     expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('hint accessibility exposes only explicitly revealed letters', (
-    tester,
-  ) async {
-    final semantics = tester.ensureSemantics();
-    try {
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(body: HintPanel(words: ['star', 'rats'])),
-        ),
-      );
-      final first = find.byKey(const ValueKey('hint-first'));
-      final last = find.byKey(const ValueKey('hint-last'));
-      expect(
-        find.bySemanticsLabel('Reveal first letter for answer 1'),
-        findsOneWidget,
-      );
-      expect(
-        find.bySemanticsLabel('Reveal last letter for answer 1'),
-        findsOneWidget,
-      );
-      tester.widget<Semantics>(first).properties.onTap!();
-      await tester.pump();
-      expect(
-        find.bySemanticsLabel('Answer 1, first letter: s'),
-        findsOneWidget,
-      );
-      expect(tester.widget<Semantics>(first).properties.onTap, isNull);
-      expect(
-        tester.widget<Semantics>(last).properties.label,
-        'Reveal last letter for answer 1',
-      );
-      expect(find.bySemanticsLabel('star'), findsNothing);
-      expect(find.bySemanticsLabel('rats'), findsNothing);
-      await tester.tap(find.byTooltip('Next answer'));
-      await tester.pump();
-      expect(
-        find.bySemanticsLabel('Reveal first letter for answer 2'),
-        findsOneWidget,
-      );
-    } finally {
-      semantics.dispose();
-    }
   });
 
   final layouts = [
@@ -599,19 +468,16 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Hint'));
       await tester.pumpAndSettle();
-      expect(find.byType(HintPanel), findsOneWidget);
+      expect(find.byType(HintDialog), findsOneWidget);
       expect(tester.takeException(), isNull);
-      final reveal = find.byKey(const ValueKey('hint-first'));
-      await tester.ensureVisible(reveal);
-      await tester.pumpAndSettle();
-      await tester.tap(reveal);
+      await tester.ensureVisible(find.text('Show first').first);
+      await tester.tap(find.text('Show first').first);
       await tester.pump();
       expect(tester.takeException(), isNull);
-      await tester.ensureVisible(find.text('Hide hint'));
+      await tester.ensureVisible(find.text('Close'));
+      await tester.tap(find.text('Close'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Hide hint'));
-      await tester.pumpAndSettle();
-      expect(find.byType(HintPanel), findsNothing);
+      expect(find.byType(HintDialog), findsNothing);
       expect(tester.takeException(), isNull);
     });
   }

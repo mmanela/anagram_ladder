@@ -4,7 +4,7 @@ import 'dart:math';
 import 'package:anagram_ladder/anagram/ladderLevel.dart';
 import 'package:anagram_ladder/components/customReorderableDragStartListener.dart';
 import 'package:anagram_ladder/components/fixedLetterRow.dart';
-import 'package:anagram_ladder/components/hintPanel.dart';
+import 'package:anagram_ladder/components/hintDialog.dart';
 import 'package:anagram_ladder/components/letterBoxDimensions.dart';
 import 'package:anagram_ladder/components/winningPopup.dart';
 import 'package:anagram_ladder/models/gameState.dart';
@@ -33,7 +33,6 @@ class _LevelPageState extends State<LevelPage> {
   List<List<String>> _filledLetters = [];
   int _currentRung = 0;
   int? _selectedLetter;
-  bool _showHints = false;
   bool _wasPlayed = true;
   bool _levelComplete = false;
   bool _showWinningView = false;
@@ -102,7 +101,6 @@ class _LevelPageState extends State<LevelPage> {
     setState(() {
       _currentRung = 0;
       _selectedLetter = null;
-      _showHints = false;
       _wasPlayed = true;
       _levelComplete = false;
       _showWinningView = false;
@@ -268,36 +266,20 @@ class _LevelPageState extends State<LevelPage> {
                       label: const Text('Shuffle'),
                     ),
                     TextButton.icon(
-                      onPressed: _levelComplete
-                          ? null
-                          : () {
-                              setState(() => _showHints = !_showHints);
-                              if (_showHints) _scrollToActiveRow();
-                            },
+                      onPressed: () =>
+                          HintDialog.show(context, currentLevel.words),
                       icon: const Icon(Icons.lightbulb_outline_rounded),
-                      label: Text(_showHints ? 'Hide hint' : 'Hint'),
+                      label: const Text('Hint'),
                     ),
                   ],
                 ),
-                Visibility(
-                  visible: _showHints,
-                  maintainState: true,
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: HintPanel(
-                      key: ValueKey(_currentRung),
-                      words: currentLevel.words,
-                    ),
-                  ),
+                Text(
+                  _selectedLetter == null
+                      ? 'Drag to reorder, or tap a letter then its new position. '
+                            'Each solved word adds new letters.'
+                      : 'Tap another position to move this letter there.',
+                  textAlign: TextAlign.center,
                 ),
-                if (!_showHints)
-                  Text(
-                    _selectedLetter == null
-                        ? 'Drag to reorder, or tap a letter then its new position. '
-                              'Each solved word adds new letters.'
-                        : 'Tap another position to move this letter there.',
-                    textAlign: TextAlign.center,
-                  ),
               ],
             ),
           ),
@@ -418,7 +400,6 @@ class _LevelPageState extends State<LevelPage> {
       setState(() {
         _levelComplete = false;
         _selectedLetter = null;
-        _showHints = false;
         _currentRung++;
         if (!isWon) {
           _filledLetters[_currentRung] = solved
