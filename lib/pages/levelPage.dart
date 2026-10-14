@@ -243,7 +243,7 @@ class _LevelPageState extends State<LevelPage> {
                             .toList(),
                         onReplay: _resetLevel,
                         onBack: () => context.read<GameRouteNavigator>().goto(
-                          GameRoutePath.daily(),
+                          GameRoutePath.home(),
                         ),
                       ),
                     )

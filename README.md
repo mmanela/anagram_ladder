@@ -55,8 +55,10 @@ puzzles, free hints, level access, and v5 saved-progress format.
 
 The home screen has a separate daily ladder with a simple completed-today status.
 Daily selection varies across Normal, Hard, Daunting, Expert, and Genius.
-The home card and daily page show the difficulty and maximum word length before
-play. The completion card and shared result also identify the difficulty.
+The home card shows the difficulty and maximum word length before play.
+Tapping it opens the puzzle directly, resuming saved progress or showing the
+completed result. Back returns directly home, with no intermediate daily screen.
+The completion card and shared result also identify the difficulty.
 Everyone gets the same scheduled puzzle for a given calendar date. The date changes
 at local midnight, including while the app stays open, and refreshes after
 returning from the background. A ladder already in progress stays on its
@@ -140,7 +142,7 @@ ten-letter boards on narrow phones, Settings reset confirmation, and large-text
 home, selector, and store layouts.
 Daily regressions cover all five difficulties, a fixed schedule fixture,
 visibility of difficulty before play and in results, legacy Normal saves,
-deterministic selection, midnight and resume rollover,
+direct daily entry and return home, deterministic selection, midnight and resume rollover,
 isolated saves, completion credit after replay, reset, malformed saves and routes,
 spoiler-free sharing, copy and failure feedback, and small-screen/large-text
 daily and completion layouts. Highlight tests include duplicate new letters

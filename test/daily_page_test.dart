@@ -10,7 +10,7 @@ import 'package:anagram_ladder/navigation/gameRouteNavigator.dart';
 import 'package:anagram_ladder/navigation/gameRoutePath.dart';
 import 'package:anagram_ladder/navigation/gameRouteInformationParser.dart';
 import 'package:anagram_ladder/navigation/gameRouterDelegate.dart';
-import 'package:anagram_ladder/pages/dailyPage.dart';
+import 'package:anagram_ladder/pages/homePage.dart';
 import 'package:anagram_ladder/pages/levelPage.dart';
 import 'package:anagram_ladder/pages/unknownPage.dart';
 import 'package:flutter/material.dart';
@@ -22,15 +22,30 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'level_page_test.dart' show setViewport;
 import 'widget_test.dart' show startGame;
 
-Future<GameState> startDailyAt(WidgetTester tester, DateTime date) async {
+Future<GameState> startDailyAt(
+  WidgetTester tester,
+  DateTime date, {
+  DateTime Function()? clock,
+  GameRoutePath? initialRoute,
+}) async {
   final store = GameStore();
-  final game = GameState(store, now: () => date);
+  final game = GameState(store, now: clock ?? () => date);
   final navigation = GameRouteNavigator();
   final router = GameRouterDelegate(navigation, game, store);
   addTearDown(store.dispose);
   addTearDown(game.dispose);
   addTearDown(navigation.dispose);
   addTearDown(router.dispose);
+  final routeInformationProvider = initialRoute == null
+      ? null
+      : PlatformRouteInformationProvider(
+          initialRouteInformation: GameRouteInformationParser()
+              .restoreRouteInformation(initialRoute)!,
+        );
+  if (routeInformationProvider != null) {
+    addTearDown(routeInformationProvider.dispose);
+  }
+  if (initialRoute != null) navigation.goto(initialRoute);
   await tester.runAsync(() => game.initialize());
   await tester.pumpWidget(
     MultiProvider(
@@ -40,6 +55,7 @@ Future<GameState> startDailyAt(WidgetTester tester, DateTime date) async {
         ChangeNotifierProvider.value(value: navigation),
       ],
       child: MaterialApp.router(
+        routeInformationProvider: routeInformationProvider,
         routerDelegate: router,
         routeInformationParser: GameRouteInformationParser(),
       ),
@@ -54,7 +70,7 @@ Future<void> showDaily(WidgetTester tester) async {
   await tester.pumpAndSettle();
   await tester.tap(find.text('Daily ladder'));
   await tester.pumpAndSettle();
-  expect(find.byType(DailyPage), findsOneWidget);
+  expect(find.byType(LevelPage), findsOneWidget);
 }
 
 Future<LadderLevel> seedDailyFinal(
@@ -106,21 +122,13 @@ void main() {
       final day = game.today;
       expect(find.text('${day.difficultyDescription}.'), findsOneWidget);
       await showDaily(tester);
-      expect(find.text(day.difficultyDescription), findsOneWidget);
-      await tester.ensureVisible(find.text('Play daily ladder'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Play daily ladder'));
-      await tester.pumpAndSettle();
       expect(tester.widget<LevelPage>(find.byType(LevelPage)).world, world);
       expect(game.getDailyState(day).world, world);
       await tester.pageBack();
       await tester.pumpAndSettle();
       final ladder = await seedDailyFinal(game, day, completed: true);
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('View completed ladder'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('View completed ladder'));
-      await tester.pumpAndSettle();
+      await showDaily(tester);
       expect(find.byType(DailyResultCard), findsOneWidget);
       expect(find.text(day.difficultyDescription), findsOneWidget);
       expect(
@@ -128,6 +136,51 @@ void main() {
           ladder.getBottomUp().map((rung) => rung.letterCount).toList(),
         ),
         contains('${day.difficulty} |'),
+      );
+    });
+  }
+
+  for (final initialLink in [false, true]) {
+    testWidgets('/daily opens directly and pins the date across midnight '
+        '(initial link: $initialLink)', (tester) async {
+      setViewport(tester, const Size(400, 800));
+      var now = DateTime(2026, 10, 14, 12);
+      final game = await startDailyAt(
+        tester,
+        now,
+        clock: () => now,
+        initialRoute: initialLink ? GameRoutePath.daily() : null,
+      );
+      if (!initialLink) {
+        tester
+            .element(find.text('Play'))
+            .read<GameRouteNavigator>()
+            .goto(GameRoutePath.daily());
+        await tester.pumpAndSettle();
+      }
+      final navigation = tester
+          .element(find.byType(LevelPage))
+          .read<GameRouteNavigator>();
+      expect(navigation.current.page, GameRoutePage.DailyLevel);
+      expect(navigation.current.dailyDate, '2026-10-14');
+      now = DateTime(2026, 10, 15, 12);
+      await tester.runAsync(() async {
+        game.didChangeAppLifecycleState(AppLifecycleState.resumed);
+      });
+      await tester.pumpAndSettle();
+      expect(game.today.dateKey, '2026-10-15');
+      expect(
+        tester.widget<LevelPage>(find.byType(LevelPage)).daily!.dateKey,
+        '2026-10-14',
+      );
+      expect(navigation.current.dailyDate, '2026-10-14');
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.byType(HomePage), findsOneWidget);
+      await showDaily(tester);
+      expect(
+        tester.widget<LevelPage>(find.byType(LevelPage)).daily!.dateKey,
+        '2026-10-15',
       );
     });
   }
@@ -169,62 +222,54 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets(
-    'daily play resumes independently and Back returns to the daily page',
-    (tester) async {
-      setViewport(tester, const Size(400, 800));
-      await startGame(tester);
-      final context = tester.element(find.text('Play'));
-      final game = context.read<GameState>();
-      final navigation = context.read<GameRouteNavigator>();
-      await showDaily(tester);
-      await tester.tap(find.text('Play daily ladder'));
-      await tester.pumpAndSettle();
-      expect(find.byType(LevelPage), findsOneWidget);
-      final day = game.today;
-      final letters = List<String>.of(
-        game.getDailyState(day).levelLetters.first,
-      );
-      final bottom = (await game.getLevelOrLoad(
-        day.world,
-        day.level,
-      )).getBottom();
-      final move =
-          [
-            for (var from = 0; from < letters.length; from++)
-              for (var to = 0; to < letters.length; to++)
-                if (from != to) (from: from, to: to),
-          ].firstWhere((move) {
-            final moved = List.of(letters);
-            moved.insert(move.to, moved.removeAt(move.from));
-            return moved.join() != letters.join() &&
-                !bottom.words.contains(moved.join());
-          });
-      final expected = List.of(letters);
-      expected.insert(move.to, expected.removeAt(move.from));
-      final reorder = tester.widget<ReorderableListView>(
-        find.byType(ReorderableListView),
-      );
-      reorder.onReorderItem!(move.from, move.to);
-      await tester.pumpAndSettle();
-      final saved = game.getDailyState(day).levelLetters.first;
-      expect(saved, expected);
-      expect(game.getLevelState(day.world, day.level).isEmpty, isTrue);
-      expect(game.resumeLevel, isNull);
-      await tester.pageBack();
-      await tester.pumpAndSettle();
-      expect(find.byType(DailyPage), findsOneWidget);
-      expect(find.text('Continue daily ladder'), findsOneWidget);
-      await tester.tap(find.text('Continue daily ladder'));
-      await tester.pumpAndSettle();
-      expect(game.getDailyState(day).levelLetters.first, saved);
-      navigation.goto(GameRoutePath.daily());
-      await tester.pumpAndSettle();
-      await tester.pageBack();
-      await tester.pumpAndSettle();
-      expect(find.text('Play'), findsOneWidget);
-    },
-  );
+  testWidgets('one tap opens daily progress and Back returns directly home', (
+    tester,
+  ) async {
+    setViewport(tester, const Size(400, 800));
+    await startGame(tester);
+    final context = tester.element(find.text('Play'));
+    final game = context.read<GameState>();
+    final navigation = context.read<GameRouteNavigator>();
+    await showDaily(tester);
+    expect(find.byType(LevelPage), findsOneWidget);
+    final day = game.today;
+    final letters = List<String>.of(game.getDailyState(day).levelLetters.first);
+    final bottom = (await game.getLevelOrLoad(
+      day.world,
+      day.level,
+    )).getBottom();
+    final move =
+        [
+          for (var from = 0; from < letters.length; from++)
+            for (var to = 0; to < letters.length; to++)
+              if (from != to) (from: from, to: to),
+        ].firstWhere((move) {
+          final moved = List.of(letters);
+          moved.insert(move.to, moved.removeAt(move.from));
+          return moved.join() != letters.join() &&
+              !bottom.words.contains(moved.join());
+        });
+    final expected = List.of(letters);
+    expected.insert(move.to, expected.removeAt(move.from));
+    final reorder = tester.widget<ReorderableListView>(
+      find.byType(ReorderableListView),
+    );
+    reorder.onReorderItem!(move.from, move.to);
+    await tester.pumpAndSettle();
+    final saved = game.getDailyState(day).levelLetters.first;
+    expect(saved, expected);
+    expect(game.getLevelState(day.world, day.level).isEmpty, isTrue);
+    expect(game.resumeLevel, isNull);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.byType(HomePage), findsOneWidget);
+    expect(navigation.current.page, GameRoutePage.Home);
+    await showDaily(tester);
+    expect(game.getDailyState(day).levelLetters.first, saved);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.text('Play'), findsOneWidget);
+  });
 
   testWidgets('daily completion is remembered and replay keeps credit', (
     tester,
@@ -256,7 +301,8 @@ void main() {
       expect(game.isDailyCompleted(day), isTrue);
       await tester.pageBack();
       await tester.pumpAndSettle();
-      expect(find.text('Completed today'), findsOneWidget);
+      expect(find.byType(HomePage), findsOneWidget);
+      expect(find.textContaining('Completed today'), findsOneWidget);
       expect(find.byType(GridView), findsNothing);
     } finally {
       semantics.dispose();
@@ -290,7 +336,7 @@ void main() {
     await prefs.setString(key, '{"invalid":true}');
     await showDaily(tester);
     expect(
-      find.textContaining('Could not read your daily progress'),
+      find.text('Could not load this ladder. Please try again.'),
       findsOneWidget,
     );
     expect(find.text('Retry'), findsOneWidget);
@@ -302,7 +348,7 @@ void main() {
     (const Size(320, 568), 3.0),
     (const Size(568, 320), 1.0),
   ]) {
-    testWidgets('daily page and result fit $size at ${scale}x text', (
+    testWidgets('direct daily result and home fit $size at ${scale}x text', (
       tester,
     ) async {
       setViewport(tester, size, textScale: scale);
@@ -315,23 +361,15 @@ void main() {
       expect(find.byType(GridView), findsNothing);
       expect(find.byTooltip('Previous month'), findsNothing);
       expect(find.textContaining('free Normal ladder'), findsNothing);
-      await tester.scrollUntilVisible(
-        find.text('View completed ladder'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('View completed ladder'));
-      await tester.pumpAndSettle();
       expect(find.byType(DailyResultCard), findsOneWidget);
       await tester.ensureVisible(find.text('Share result'));
       await tester.pumpAndSettle();
       expect(find.text('Share result').hitTestable(), findsOneWidget);
-      await tester.ensureVisible(find.text('Back to daily'));
+      await tester.ensureVisible(find.text('Back to home'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Back to daily'));
+      await tester.tap(find.text('Back to home'));
       await tester.pumpAndSettle();
-      expect(find.byType(DailyPage), findsOneWidget);
+      expect(find.byType(HomePage), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   }

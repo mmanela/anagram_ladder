@@ -116,7 +116,9 @@ class HomePage extends StatelessWidget {
                         '${game.isDailyCompleted(game.today) ? ' Completed today.' : ''}',
                       ),
                       trailing: const Icon(Icons.chevron_right),
-                      onTap: () => navigation.goto(GameRoutePath.daily()),
+                      onTap: () => navigation.goto(
+                        GameRoutePath.dailyLevel(game.today.dateKey),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 24),

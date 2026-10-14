@@ -118,7 +118,7 @@ class _DailyResultCardState extends State<DailyResultCard> {
               ),
               OutlinedButton(
                 onPressed: widget.onBack,
-                child: const Text('Back to daily'),
+                child: const Text('Back to home'),
               ),
               TextButton(
                 onPressed: widget.onReplay,

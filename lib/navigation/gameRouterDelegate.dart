@@ -4,7 +4,6 @@ import 'package:anagram_ladder/models/gameStore.dart';
 import 'package:anagram_ladder/navigation/gameRouteNavigator.dart';
 import 'package:anagram_ladder/pages/aboutPage.dart';
 import 'package:anagram_ladder/pages/homePage.dart';
-import 'package:anagram_ladder/pages/dailyPage.dart';
 import 'package:anagram_ladder/pages/levelPage.dart';
 import 'package:anagram_ladder/pages/loadingPage.dart';
 import 'package:anagram_ladder/pages/payPage.dart';
@@ -24,15 +23,25 @@ class GameRouterDelegate extends RouterDelegate<GameRoutePath>
   final GameStore _gameStore;
   GameRouterDelegate(this._routeNavigator, this._gameState, this._gameStore)
     : _navigatorKey = GlobalKey<NavigatorState>() {
-    _routeNavigator.addListener(notifyListeners);
-    _gameState.addListener(notifyListeners);
+    _routeNavigator.addListener(_handleChange);
+    _gameState.addListener(_handleChange);
     _gameStore.addListener(notifyListeners);
+    _handleChange();
+  }
+
+  void _handleChange() {
+    if (_gameState.isLoaded &&
+        _routeNavigator.current.page == GameRoutePage.Daily) {
+      _routeNavigator.goto(GameRoutePath.dailyLevel(_gameState.today.dateKey));
+      return;
+    }
+    notifyListeners();
   }
 
   @override
   void dispose() {
-    _routeNavigator.removeListener(notifyListeners);
-    _gameState.removeListener(notifyListeners);
+    _routeNavigator.removeListener(_handleChange);
+    _gameState.removeListener(_handleChange);
     _gameStore.removeListener(notifyListeners);
     super.dispose();
   }
@@ -70,12 +79,6 @@ class GameRouterDelegate extends RouterDelegate<GameRoutePath>
           ? [MaterialPage(key: ValueKey('LoadingPage'), child: LoadingPage())]
           : [
               MaterialPage(key: ValueKey('HomePage'), child: HomePage()),
-              if (currentConfiguration.page == GameRoutePage.Daily ||
-                  currentConfiguration.page == GameRoutePage.DailyLevel)
-                const MaterialPage(
-                  key: ValueKey('DailyPage'),
-                  child: DailyPage(),
-                ),
               if (currentConfiguration.page == GameRoutePage.DailyLevel)
                 MaterialPage(
                   key: ValueKey('DailyLevelPage'),
@@ -138,7 +141,7 @@ class GameRouterDelegate extends RouterDelegate<GameRoutePath>
           GameRoutePage.WorldSet => 'WorldSetPage',
           GameRoutePage.World => 'WorldPage',
           GameRoutePage.Level => 'LevelPage',
-          GameRoutePage.Daily => 'DailyPage',
+          GameRoutePage.Daily => 'DailyLevelPage',
           GameRoutePage.DailyLevel => 'DailyLevelPage',
         };
         if (page.key != ValueKey(currentPageKey)) {
@@ -153,10 +156,8 @@ class GameRouterDelegate extends RouterDelegate<GameRoutePath>
           case GameRoutePage.WorldSet:
           case GameRoutePage.Settings:
           case GameRoutePage.Daily:
-            _routeNavigator.goto(GameRoutePath.home());
-            break;
           case GameRoutePage.DailyLevel:
-            _routeNavigator.goto(GameRoutePath.daily());
+            _routeNavigator.goto(GameRoutePath.home());
             break;
           case GameRoutePage.Pay:
             if (currentConfiguration.source == GameRoutePage.World) {
