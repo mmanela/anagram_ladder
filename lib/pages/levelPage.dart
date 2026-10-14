@@ -36,7 +36,7 @@ class _LevelPageState extends State<LevelPage> {
   bool _wasPlayed = true;
   bool _levelComplete = false;
   bool _showWinningView = false;
-  final _activeRowKey = GlobalKey();
+  final _activeLettersKey = GlobalKey();
   Timer? _completionTimer;
   Timer? _cascadeTimer;
   Duration get _solveDuration => MediaQuery.disableAnimationsOf(context)
@@ -141,150 +141,178 @@ class _LevelPageState extends State<LevelPage> {
   }
 
   Widget _board(BuildContext context) {
-    final dimensions = LetterBoxDimensions(
-      context,
-      widget.world,
-      _levels.length,
-    );
     return LayoutBuilder(
-      builder: (context, constraints) => SingleChildScrollView(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(minHeight: constraints.maxHeight),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 732),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      isWon
-                          ? 'Ladder complete'
-                          : 'Rung ${_currentRung + 1} of ${_levels.length}',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 10),
-                    LinearProgressIndicator(
-                      value: min(_currentRung, _levels.length) / _levels.length,
-                      semanticsLabel:
-                          'Ladder progress, $_currentRung of '
-                          '${_levels.length} rungs solved',
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    const SizedBox(height: 24),
-                    for (var rung = _levels.length - 1; rung >= 0; rung--)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: !isWon && rung == _currentRung
-                            ? _activeRow(context, dimensions)
-                            : FixedLetterRow(_filledLetters[rung], dimensions),
+      builder: (context, constraints) {
+        final dimensions = LetterBoxDimensions(
+          context,
+          widget.world,
+          _levels.length,
+          availableWidth:
+              constraints.maxWidth - LetterBoxDimensions.horizontalPadding * 2,
+        );
+        return SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth:
+                      LetterBoxDimensions.MaxBoardWidth +
+                      LetterBoxDimensions.horizontalPadding * 2,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: LetterBoxDimensions.horizontalPadding,
+                    vertical: 16,
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        isWon
+                            ? 'Ladder complete'
+                            : 'Rung ${_currentRung + 1} of ${_levels.length}',
+                        style: Theme.of(context).textTheme.titleMedium,
                       ),
-                  ],
+                      const SizedBox(height: 10),
+                      LinearProgressIndicator(
+                        value:
+                            min(_currentRung, _levels.length) / _levels.length,
+                        semanticsLabel:
+                            'Ladder progress, $_currentRung of '
+                            '${_levels.length} rungs solved',
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      const SizedBox(height: 24),
+                      for (var rung = _levels.length - 1; rung >= 0; rung--)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          child: !isWon && rung == _currentRung
+                              ? _activeRow(context)
+                              : FixedLetterRow(
+                                  _filledLetters[rung],
+                                  dimensions,
+                                ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
-  Widget _activeRow(BuildContext context, LetterBoxDimensions dimensions) {
+  Widget _activeRow(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     return Container(
-      key: _activeRowKey,
       decoration: BoxDecoration(
         color: colors.surfaceContainerLowest,
         border: Border.all(color: colors.primary.withValues(alpha: 0.35)),
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Text(
-              _levelComplete
-                  ? 'Word found!'
-                  : '${currentLevel.letterCount} letters, '
-                        '${currentLevel.levelWordCount} '
-                        '${currentLevel.levelWordCount == 1 ? 'possible word' : 'possible words'}',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-          ),
-          Center(
-            child: SizedBox(
-              width: activeLetters.length * dimensions.boxWidth,
-              height: dimensions.boxHeight,
-              child: ReorderableListView(
-                scrollDirection: Axis.horizontal,
-                physics: const NeverScrollableScrollPhysics(),
-                buildDefaultDragHandles: false,
-                onReorderItem: _moveLetter,
-                proxyDecorator: (child, index, animation) => Material(
-                  elevation: 6,
-                  color: Colors.transparent,
-                  borderRadius: BorderRadius.circular(12),
-                  child: child,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final dimensions = LetterBoxDimensions(
+            context,
+            activeLetters.length,
+            _levels.length,
+            availableWidth: constraints.maxWidth,
+          );
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Text(
+                  _levelComplete
+                      ? 'Word found!'
+                      : '${currentLevel.letterCount} letters, '
+                            '${currentLevel.levelWordCount} '
+                            '${currentLevel.levelWordCount == 1 ? 'possible word' : 'possible words'}',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyMedium,
                 ),
-                children: [
-                  for (var index = 0; index < activeLetters.length; index++)
-                    SizedBox(
-                      key: ValueKey(index),
-                      width: dimensions.boxWidth,
-                      child: CustomReorderableDragStartListener(
-                        index: index,
-                        draggingEnabled: !_levelComplete,
-                        child: _letterTile(context, index, dimensions),
-                      ),
-                    ),
-                ],
               ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              children: [
-                Wrap(
-                  alignment: WrapAlignment.center,
-                  spacing: 16,
-                  children: [
-                    TextButton.icon(
-                      onPressed: _levelComplete
-                          ? null
-                          : () {
-                              setState(() {
-                                _selectedLetter = null;
-                                activeLetters.shuffle();
-                              });
-                              _checkActiveRow();
-                            },
-                      icon: const Icon(Icons.shuffle),
-                      label: const Text('Shuffle'),
+              Center(
+                child: SizedBox(
+                  key: _activeLettersKey,
+                  width: activeLetters.length * dimensions.boxWidth,
+                  height: max(64, dimensions.boxHeight),
+                  child: ReorderableListView(
+                    scrollDirection: Axis.horizontal,
+                    physics: const NeverScrollableScrollPhysics(),
+                    buildDefaultDragHandles: false,
+                    onReorderItem: _moveLetter,
+                    proxyDecorator: (child, index, animation) => Material(
+                      elevation: 6,
+                      color: Colors.transparent,
+                      borderRadius: BorderRadius.circular(12),
+                      child: child,
                     ),
-                    TextButton.icon(
-                      onPressed: _levelComplete
-                          ? null
-                          : () => HintDialog.show(context, currentLevel.words),
-                      icon: const Icon(Icons.lightbulb_outline_rounded),
-                      label: const Text('Hint'),
+                    children: [
+                      for (var index = 0; index < activeLetters.length; index++)
+                        SizedBox(
+                          key: ValueKey(index),
+                          width: dimensions.boxWidth,
+                          child: CustomReorderableDragStartListener(
+                            index: index,
+                            draggingEnabled: !_levelComplete,
+                            child: _letterTile(context, index, dimensions),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  children: [
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 16,
+                      children: [
+                        TextButton.icon(
+                          onPressed: _levelComplete
+                              ? null
+                              : () {
+                                  setState(() {
+                                    _selectedLetter = null;
+                                    activeLetters.shuffle();
+                                  });
+                                  _checkActiveRow();
+                                },
+                          icon: const Icon(Icons.shuffle),
+                          label: const Text('Shuffle'),
+                        ),
+                        TextButton.icon(
+                          onPressed: _levelComplete
+                              ? null
+                              : () => HintDialog.show(
+                                  context,
+                                  currentLevel.words,
+                                ),
+                          icon: const Icon(Icons.lightbulb_outline_rounded),
+                          label: const Text('Hint'),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      _selectedLetter == null
+                          ? 'Drag to reorder, or tap a letter then its new position. '
+                                'Each solved word adds new letters.'
+                          : 'Tap another position to move this letter there.',
+                      textAlign: TextAlign.center,
                     ),
                   ],
                 ),
-                Text(
-                  _selectedLetter == null
-                      ? 'Drag to reorder, or tap a letter then its new position. '
-                            'Each solved word adds new letters.'
-                      : 'Tap another position to move this letter there.',
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          ),
-        ],
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -330,7 +358,7 @@ class _LevelPageState extends State<LevelPage> {
           onTap: _levelComplete ? null : select,
           child: AnimatedContainer(
             duration: _solveDuration,
-            margin: const EdgeInsets.all(3),
+            margin: const EdgeInsets.all(1),
             padding: const EdgeInsets.all(2),
             decoration: BoxDecoration(
               color: _levelComplete
@@ -434,7 +462,7 @@ class _LevelPageState extends State<LevelPage> {
   void _scrollToActiveRow() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final rowContext = _activeRowKey.currentContext;
+      final rowContext = _activeLettersKey.currentContext;
       if (rowContext != null) {
         Scrollable.ensureVisible(
           rowContext,

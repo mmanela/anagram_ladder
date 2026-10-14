@@ -22,8 +22,8 @@ class FixedLetterRow extends StatelessWidget {
             children: [
               for (final letter in _letters)
                 Container(
-                  width: _dimensions.boxWidth - 6,
-                  margin: const EdgeInsets.all(3),
+                  width: _dimensions.boxWidth - 2,
+                  margin: const EdgeInsets.all(1),
                   padding: const EdgeInsets.all(2),
                   decoration: BoxDecoration(
                     color: solved

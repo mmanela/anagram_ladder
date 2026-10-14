@@ -228,7 +228,7 @@ void main() {
   testWidgets('vertical drags on a tile scroll without rearranging letters', (
     tester,
   ) async {
-    setViewport(tester, const Size(320, 568));
+    setViewport(tester, const Size(320, 400));
     final state = await openFixture(tester);
     final scrollable = tester.state<ScrollableState>(
       find.byWidgetPredicate(

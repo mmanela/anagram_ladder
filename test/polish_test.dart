@@ -130,7 +130,8 @@ void main() {
       final rect = tester.getRect(letter);
       expect(rect.left, greaterThanOrEqualTo(0));
       expect(rect.right, lessThanOrEqualTo(320));
-      expect(rect.height, greaterThanOrEqualTo(48));
+      expect(rect.width, closeTo(30.2, 0.001));
+      expect(rect.height, greaterThanOrEqualTo(64));
       expect(letter.hitTestable(), findsOneWidget);
     }
     await tester.tap(find.byKey(const ValueKey('letter-0')));
@@ -144,6 +145,92 @@ void main() {
     );
     expect(tester.takeException(), isNull);
   }, variant: TargetPlatformVariant.only(TargetPlatform.android));
+
+  for (final letterCount in [8, 10]) {
+    for (final (size, textScale, sideInset) in [
+      (const Size(320, 568), 1.0, 0.0),
+      (const Size(400, 800), 1.0, 0.0),
+      (const Size(700, 320), 3.0, 44.0),
+      (const Size(1024, 768), 1.0, 0.0),
+    ]) {
+      testWidgets('$letterCount active letters fill available width at $size, '
+          '${textScale}x text, $sideInset side inset', (tester) async {
+        setViewport(tester, size, textScale: textScale);
+        tester.view.padding = FakeViewPadding(
+          left: sideInset,
+          right: sideInset,
+        );
+        addTearDown(tester.view.resetPadding);
+        await startGame(tester);
+        final context = tester.element(find.text('Play'));
+        final state = context.read<GameState>();
+        final ladder = await state.getLevelOrLoad(10, 1);
+        final rungs = ladder.getBottomUp();
+        final rung = rungs.indexWhere(
+          (rung) => rung.letterCount == letterCount,
+        );
+        expect(rung, isNonNegative);
+        final progress = await completedLevel(state, 10, 1);
+        progress.currentRung = rung;
+        progress.levelLetters[rung] = progress.levelLetters[rung].reversed
+            .toList();
+        expect(
+          rungs[rung].words,
+          isNot(contains(progress.levelLetters[rung].join())),
+        );
+        await state.persistLevelState(progress);
+        context.read<GameRouteNavigator>().goto(GameRoutePath.level(10, 1));
+        await tester.pumpAndSettle();
+
+        final boardWidth = (size.width - sideInset * 2 - 16).clamp(0, 700);
+        final expectedWidth = ((boardWidth - 2) / letterCount).clamp(0, 72);
+        final first = find.byKey(const ValueKey('letter-0'));
+        final last = find.byKey(ValueKey('letter-${letterCount - 1}'));
+        for (var index = 0; index < letterCount; index++) {
+          final letter = find.byKey(ValueKey('letter-$index'));
+          final rect = tester.getRect(letter);
+          expect(rect.width, closeTo(expectedWidth, 0.001));
+          expect(rect.height, greaterThanOrEqualTo(64));
+          expect(rect.left, greaterThanOrEqualTo(sideInset + 8));
+          expect(rect.right, lessThanOrEqualTo(size.width - sideInset - 8));
+          final paintedTile = find.descendant(
+            of: letter,
+            matching: find.byType(DecoratedBox),
+          );
+          expect(
+            tester.getSize(paintedTile).width,
+            closeTo(expectedWidth - 2, 0.001),
+          );
+          expect(letter.hitTestable(), findsOneWidget);
+        }
+        final before = List<String>.of(progress.levelLetters[rung]);
+        await tester.tap(first);
+        await tester.pump();
+        await tester.tap(last);
+        await tester.pumpAndSettle();
+        final afterTap = [...before.skip(1), before.first];
+        expect(state.getLevelState(10, 1).levelLetters[rung], afterTap);
+        final start = tester.getCenter(first);
+        final destination = tester.getCenter(
+          find.byKey(const ValueKey('letter-2')),
+        );
+        final gesture = await tester.startGesture(start);
+        for (var step = 1; step <= 6; step++) {
+          await gesture.moveTo(Offset.lerp(start, destination, step / 6)!);
+          await tester.pump(const Duration(milliseconds: 60));
+        }
+        await gesture.up();
+        await tester.pumpAndSettle();
+        expect(state.getLevelState(10, 1).levelLetters[rung], [
+          afterTap[1],
+          afterTap[2],
+          afterTap[0],
+          ...afterTap.skip(3),
+        ]);
+        expect(tester.takeException(), isNull);
+      }, variant: TargetPlatformVariant.only(TargetPlatform.android));
+    }
+  }
 
   testWidgets('difficulty and ladder selectors support large text', (
     tester,

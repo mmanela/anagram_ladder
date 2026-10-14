@@ -20,6 +20,11 @@ puzzles, free hints, level access, and v5 saved-progress format.
 - A scrolling board highlights the active rung, shows overall progress, and
   brings the active row into view. Solved and upcoming rows have distinct,
   higher-contrast styles.
+- Active tiles use the current word length and available board width, with
+  tighter gaps and at least 64 logical pixels of touch height. The whole word
+  stays visible without horizontal scrolling, including ten-letter words on
+  narrow phones. Auto-scrolling prioritizes the letters, even when large text
+  makes the active card taller than the screen.
 - Drag letters horizontally, or tap a letter and then its destination. Vertical
   swipes scroll the board instead of starting a drag. Screen readers expose
   letter positions and Move left / Move right actions.
