@@ -1,7 +1,10 @@
 import 'package:anagram_ladder/models/gameState.dart';
+import 'package:anagram_ladder/models/gameStore.dart';
 import 'package:anagram_ladder/models/levelState.dart';
 import 'package:anagram_ladder/navigation/gameRouteNavigator.dart';
 import 'package:anagram_ladder/navigation/gameRoutePath.dart';
+import 'package:anagram_ladder/navigation/gameRouteInformationParser.dart';
+import 'package:anagram_ladder/navigation/gameRouterDelegate.dart';
 import 'package:anagram_ladder/pages/levelPage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -65,6 +68,103 @@ void main() {
       expect(find.text(label).hitTestable(), findsOneWidget);
       expect(tester.takeException(), isNull);
     }
+  }, variant: TargetPlatformVariant.only(TargetPlatform.android));
+
+  testWidgets('a loading store does not block home or free ladders', (
+    tester,
+  ) async {
+    final store = GameStore();
+    final state = GameState(store);
+    final navigation = GameRouteNavigator();
+    final router = GameRouterDelegate(navigation, state, store);
+    addTearDown(router.dispose);
+    addTearDown(state.dispose);
+    addTearDown(store.dispose);
+    addTearDown(navigation.dispose);
+    await tester.runAsync(() => state.initialize());
+    expect(store.isLoaded, isFalse);
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider.value(value: store),
+          ChangeNotifierProvider.value(value: state),
+          ChangeNotifierProvider.value(value: navigation),
+        ],
+        child: MaterialApp.router(
+          routerDelegate: router,
+          routeInformationParser: GameRouteInformationParser(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Play'), findsOneWidget);
+    navigation.goto(GameRoutePath.level(6, 1));
+    await tester.pumpAndSettle();
+    expect(find.byType(LevelPage), findsOneWidget);
+    expect(find.byType(ReorderableListView), findsOneWidget);
+    expect(store.isLoaded, isFalse);
+  });
+
+  testWidgets('ten-letter rungs fit a narrow phone and remain tappable', (
+    tester,
+  ) async {
+    setViewport(tester, const Size(320, 568));
+    await startGame(tester);
+    final context = tester.element(find.text('Play'));
+    final state = context.read<GameState>();
+    final progress = await completedLevel(state, 10, 1);
+    progress.currentRung = progress.rungCount - 1;
+    progress.levelLetters.last = progress.levelLetters.last.reversed.toList();
+    await state.persistLevelState(progress);
+    context.read<GameRouteNavigator>().goto(GameRoutePath.level(10, 1));
+    await tester.pumpAndSettle();
+    expect(find.text('Genius Ladder #1'), findsOneWidget);
+    expect(
+      tester
+          .widget<ReorderableListView>(find.byType(ReorderableListView))
+          .itemCount,
+      10,
+    );
+    for (var index = 0; index < 10; index++) {
+      final letter = find.byKey(ValueKey('letter-$index'));
+      final rect = tester.getRect(letter);
+      expect(rect.left, greaterThanOrEqualTo(0));
+      expect(rect.right, lessThanOrEqualTo(320));
+      expect(rect.height, greaterThanOrEqualTo(48));
+      expect(letter.hitTestable(), findsOneWidget);
+    }
+    await tester.tap(find.byKey(const ValueKey('letter-0')));
+    await tester.pump();
+    expect(
+      tester
+          .widget<Semantics>(find.byKey(const ValueKey('letter-0')))
+          .properties
+          .selected,
+      isTrue,
+    );
+    expect(tester.takeException(), isNull);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.android));
+
+  testWidgets('difficulty and ladder selectors support large text', (
+    tester,
+  ) async {
+    setViewport(tester, const Size(320, 568), textScale: 3);
+    await startGame(tester);
+    final navigation = tester
+        .element(find.text('Play'))
+        .read<GameRouteNavigator>();
+    navigation.goto(GameRoutePath.worldSet());
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Genius'),
+      250,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Genius'));
+    await tester.pumpAndSettle();
+    expect(find.text('Genius Ladders'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   }, variant: TargetPlatformVariant.only(TargetPlatform.android));
 
   testWidgets('level selection names completed, partial, and new ladders', (

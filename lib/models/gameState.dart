@@ -46,6 +46,7 @@ class GameState with ChangeNotifier {
     AnagramLadderBuilder.SeedWordLengthMax + 1,
   ).toList();
   bool isLoaded = false;
+  bool _disposed = false;
 
   bool get hapticsEnabled =>
       _sharedPreferences?.getBool('hapticsEnabled') ?? true;
@@ -54,7 +55,7 @@ class GameState with ChangeNotifier {
     final preferences = _sharedPreferences;
     if (preferences == null) throw StateError('Game is not loaded');
     await preferences.setBool('hapticsEnabled', enabled);
-    notifyListeners();
+    if (!_disposed) notifyListeners();
   }
 
   GameRoutePath? get resumeLevel {
@@ -91,6 +92,7 @@ class GameState with ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     this.gameStore.removeListener(_handleStoreChange);
     super.dispose();
   }
@@ -130,7 +132,7 @@ class GameState with ChangeNotifier {
     } finally {
       print("gameState: End initialize");
       isLoaded = true;
-      notifyListeners();
+      if (!_disposed) notifyListeners();
     }
   }
 
@@ -208,10 +210,11 @@ class GameState with ChangeNotifier {
     }
 
     _updateWorldCompletionPercentage(levelState.world);
-    if (previous.isEmpty ||
-        previous.currentRung != levelState.currentRung ||
-        previousResume?.world != levelState.world ||
-        previousResume?.level != levelState.level) {
+    if (!_disposed &&
+        (previous.isEmpty ||
+            previous.currentRung != levelState.currentRung ||
+            previousResume?.world != levelState.world ||
+            previousResume?.level != levelState.level)) {
       notifyListeners();
     }
   }

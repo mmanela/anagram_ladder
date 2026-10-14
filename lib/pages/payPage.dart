@@ -1,165 +1,156 @@
-
 import 'package:anagram_ladder/models/gameStore.dart';
 import 'package:flutter/material.dart';
-import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:provider/provider.dart';
 
-class PayPage extends StatefulWidget {
-  @override
-  _PayPageState createState() => _PayPageState();
-}
-
-class _PayPageState extends State<PayPage> {
-  late GameStore _store;
-  String? _lastError;
-
-  @override
-  void initState() {
-    _store = context.read<GameStore>();
-    _store.addListener(_handleEvent);
-    super.initState();
-  }
-
-  @override
-  void dispose() {
-    _store.removeListener(_handleEvent);
-    super.dispose();
-  }
-
-  void _handleEvent() {
-    if (_store.errorMessage != null && _lastError != _store.errorMessage) {
-      _lastError = _store.errorMessage;
-      // ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      //   content: Text(_store.errorMessage!),
-      // ));
-      print("PayPage: ${_store.errorMessage!}");
-    }
-    setState(() {});
-  }
-
+class PayPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    List<Widget> stack = [];
-
-    stack.add(
-      ListView(children: [_buildConnectionCheckTile(), _buildProductList()]),
-    );
-
-    if (_store.storeEvent == StoreEvent.purchasePending) {
-      stack.add(
-        Stack(
-          children: [
-            Opacity(
-              opacity: 0.3,
-              child: const ModalBarrier(dismissible: false, color: Colors.grey),
-            ),
-            Center(child: CircularProgressIndicator()),
-          ],
-        ),
-      );
-    }
+    final store = context.watch<GameStore>();
+    final colors = Theme.of(context).colorScheme;
+    final pending = store.storeEvent == StoreEvent.purchasePending;
 
     return Scaffold(
-      appBar: AppBar(title: Text("Store")),
-      body: SafeArea(child: Stack(children: stack)),
-    );
-  }
-
-  Card _buildConnectionCheckTile() {
-    final textScaler = MediaQuery.textScalerOf(context)
-        .clamp(maxScaleFactor: 1.4);
-    if (!_store.isLoaded) {
-      return Card(
-        child: ListTile(
-          title: Text('Trying to connect...', textScaler: textScaler),
-        ),
-      );
-    }
-    final List<Widget> children = <Widget>[];
-
-    if (!_store.isAvailable) {
-      children.addAll([
-        Divider(),
-        ListTile(
-          title: Text(
-            'Not connected',
-            style: TextStyle(color: ThemeData.light().colorScheme.error),
-            textScaler: textScaler,
-          ),
-          subtitle: Text(
-            'Unable to connect to the store!',
-            textScaler: textScaler,
-          ),
-        ),
-      ]);
-    }
-    return Card(child: Column(children: children));
-  }
-
-  Card _buildProductList() {
-    final textScaler = MediaQuery.textScalerOf(context)
-        .clamp(maxScaleFactor: 1.4);
-    if (!_store.isLoaded) {
-      return Card(
-        child: (ListTile(
-          leading: CircularProgressIndicator(),
-          title: Text('Fetching products...', textScaler: textScaler),
-        )),
-      );
-    }
-    if (!_store.isAvailable) {
-      return Card();
-    }
-    List<ListTile> productList = <ListTile>[];
-    if (_store.notFoundIds.isNotEmpty) {
-      productList.add(
-        ListTile(
-          title: Text(
-            '[${_store.notFoundIds.join(", ")}] not found',
-            style: TextStyle(color: ThemeData.light().colorScheme.error),
-            textScaler: textScaler,
-          ),
-          subtitle: Text('Failed to find products.', textScaler: textScaler),
-        ),
-      );
-    }
-
-    Map<String, PurchaseDetails> purchases = Map.fromEntries(
-      _store.purchases.map((PurchaseDetails purchase) {
-        _store.completePendingPurchase(purchase);
-        return MapEntry<String, PurchaseDetails>(purchase.productID, purchase);
-      }),
-    );
-    productList.addAll(
-      _store.products.map((ProductDetails productDetails) {
-        PurchaseDetails? previousPurchase = purchases[productDetails.id];
-        String title = productDetails.description.isEmpty
-            ? productDetails.title
-            : productDetails.description;
-        title = title.isEmpty
-            ? "Unlock levels 51 to 100 in all difficulties"
-            : title;
-        return ListTile(
-          title: Text(title, textScaler: textScaler),
-          trailing: previousPurchase != null
-              ? Icon(Icons.check)
-              : TextButton(
-                  child: Text(productDetails.price, textScaler: textScaler),
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    backgroundColor: Colors.green[800],
-                  ),
-                  onPressed: () {
-                    _store.purchaseProduct(productDetails);
-                  },
+      appBar: AppBar(title: const Text('Store')),
+      body: SafeArea(
+        child: Stack(
+          children: [
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 560),
+                child: ListView(
+                  padding: const EdgeInsets.all(24),
+                  children: [
+                    Icon(Icons.stairs_rounded, size: 48, color: colors.primary),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Keep climbing',
+                      style: Theme.of(context).textTheme.headlineMedium,
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Unlock ladders 51 to 100 in every difficulty. '
+                      'A one-time purchase, with no timers or subscriptions.',
+                    ),
+                    const SizedBox(height: 24),
+                    if (!store.isLoaded) ...[
+                      const LinearProgressIndicator(),
+                      const SizedBox(height: 12),
+                      const Text('Connecting to the store...'),
+                    ] else ...[
+                      if (store.errorMessage != null ||
+                          !store.isAvailable ||
+                          store.products.isEmpty) ...[
+                        Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Text(
+                                  store.errorMessage ??
+                                      (store.isAvailable
+                                          ? 'Extra ladders are unavailable right now.'
+                                          : 'The store is unavailable right now.'),
+                                  style: TextStyle(color: colors.error),
+                                ),
+                                const SizedBox(height: 12),
+                                const Text(
+                                  'Your free ladders are still ready to play.',
+                                ),
+                                const SizedBox(height: 16),
+                                OutlinedButton(
+                                  onPressed: store.isBusy
+                                      ? null
+                                      : store.initialize,
+                                  child: const Text('Retry connection'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                      for (final product in store.products)
+                        Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Text(
+                                  product.description.isNotEmpty
+                                      ? product.description
+                                      : '50 more ladders in every difficulty',
+                                  style: Theme.of(context).textTheme.titleLarge,
+                                ),
+                                const SizedBox(height: 20),
+                                if (store.hasUnlocked51To100)
+                                  const Row(
+                                    children: [
+                                      Icon(Icons.check_circle_outline),
+                                      SizedBox(width: 12),
+                                      Expanded(child: Text('Unlocked')),
+                                    ],
+                                  )
+                                else
+                                  FilledButton(
+                                    onPressed: store.isBusy
+                                        ? null
+                                        : () => store.purchaseProduct(product),
+                                    child: Text('Unlock for ${product.price}'),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      const SizedBox(height: 16),
+                      OutlinedButton(
+                        onPressed: store.isBusy || !store.isAvailable
+                            ? null
+                            : store.restorePurchases,
+                        child: Text(
+                          store.isRestoring
+                              ? 'Restoring purchases...'
+                              : 'Restore Purchases',
+                        ),
+                      ),
+                      if (store.isRestoring) ...[
+                        const SizedBox(height: 12),
+                        const LinearProgressIndicator(),
+                      ],
+                      if (store.statusMessage != null) ...[
+                        const SizedBox(height: 16),
+                        Semantics(
+                          liveRegion: true,
+                          child: Text(store.statusMessage!),
+                        ),
+                      ],
+                    ],
+                  ],
                 ),
-        );
-      }),
-    );
-
-    return Card(
-      margin: EdgeInsets.fromLTRB(10, 20, 10, 0),
-      child: Column(children: productList),
+              ),
+            ),
+            if (pending) ...[
+              const ModalBarrier(dismissible: false, color: Colors.black26),
+              Center(
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const CircularProgressIndicator(),
+                        const SizedBox(height: 20),
+                        const Text('Waiting for the store...'),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }

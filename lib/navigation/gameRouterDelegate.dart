@@ -55,7 +55,7 @@ class GameRouterDelegate extends RouterDelegate<GameRoutePath>
   Widget build(BuildContext context) {
     return Navigator(
       key: navigatorKey,
-      pages: !_gameState.isLoaded || !_gameStore.isLoaded
+      pages: !_gameState.isLoaded
           ? [MaterialPage(key: ValueKey('LoadingPage'), child: LoadingPage())]
           : [
               MaterialPage(key: ValueKey('HomePage'), child: HomePage()),

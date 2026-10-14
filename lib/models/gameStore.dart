@@ -12,134 +12,168 @@ class GameStore extends ChangeNotifier {
 
   InAppPurchase get _inAppPurchase => InAppPurchase.instance;
   StreamSubscription<List<PurchaseDetails>>? _subscription;
+  Future<void>? _initialization;
+  bool _disposed = false;
 
   List<PurchaseDetails> purchases = [];
   List<String> notFoundIds = [];
   List<ProductDetails> products = [];
   bool isAvailable = false;
   String? errorMessage;
+  String? statusMessage;
+  bool isRestoring = false;
   StoreEvent storeEvent = StoreEvent.loading;
 
   bool get isLoaded => storeEvent != StoreEvent.loading;
+  bool get isBusy =>
+      !isLoaded || storeEvent == StoreEvent.purchasePending || isRestoring;
   bool get hasUnlocked51To100 =>
       purchases.any((element) => element.productID == productUnlock51to100);
 
-  Future initialize() async {
-    print("gameStore: Start initialize");
+  Future<void> initialize() {
+    if (_disposed) throw StateError('Store has been disposed');
+    return _initialization ??= _initialize().whenComplete(
+      () => _initialization = null,
+    );
+  }
+
+  void _notify() {
+    if (!_disposed) notifyListeners();
+  }
+
+  void _reportError(Object error) {
+    debugPrint('gameStore: $error');
+    errorMessage = error.toString();
+    statusMessage = null;
+    storeEvent = StoreEvent.error;
+    _notify();
+  }
+
+  Future<void> _initialize() async {
+    if (storeEvent == StoreEvent.purchasePending || isRestoring) return;
+    storeEvent = StoreEvent.loading;
+    errorMessage = null;
+    statusMessage = null;
+    _notify();
     if (defaultTargetPlatform == TargetPlatform.android) {
-      storeEvent = StoreEvent.error;
+      isAvailable = false;
+      storeEvent = StoreEvent.unavailable;
+      _notify();
       return;
     }
 
     try {
-      final Stream<List<PurchaseDetails>> purchaseUpdated =
-          _inAppPurchase.purchaseStream;
-      _subscription = purchaseUpdated.listen(
+      _subscription ??= _inAppPurchase.purchaseStream.listen(
         (purchaseDetailsList) {
-          _listenToPurchaseUpdated(purchaseDetailsList);
+          unawaited(_listenToPurchaseUpdated(purchaseDetailsList));
         },
         onDone: () {
-          _subscription?.cancel();
+          _subscription = null;
+          _reportError('The store connection closed. Please retry.');
         },
-        onError: (error) {
-          print("gameStore: Listen error -> $error");
-          errorMessage = error.toString();
-          storeEvent = StoreEvent.error;
-          notifyListeners();
-        },
+        onError: _reportError,
       );
 
       await initStoreInfo();
     } catch (err) {
-      print("gameStore: Store initialize error -> $err");
-      errorMessage = err.toString();
-      storeEvent = StoreEvent.error;
-      notifyListeners();
-    } finally {
-      if (storeEvent == StoreEvent.loading) {
-        storeEvent = StoreEvent.ready;
-      }
-      notifyListeners();
-      print("gameStore: End initialize");
+      _reportError(err);
     }
   }
 
   Future<void> initStoreInfo() async {
     isAvailable = await _inAppPurchase.isAvailable();
+    if (_disposed) return;
     if (!isAvailable) {
       storeEvent = StoreEvent.unavailable;
-      notifyListeners();
+      _notify();
       return;
     }
 
     ProductDetailsResponse productDetailResponse = await _inAppPurchase
         .queryProductDetails(productIds.toSet());
+    if (_disposed) return;
 
     products = productDetailResponse.productDetails;
     notFoundIds = productDetailResponse.notFoundIDs;
 
     if (productDetailResponse.error != null) {
-      print(
-        "gameStore: Error querying: ${productDetailResponse.error!.message}",
-      );
-      errorMessage = productDetailResponse.error!.message;
-      storeEvent = StoreEvent.error;
-      notifyListeners();
+      _reportError(productDetailResponse.error!.message);
       return;
     } else {
       errorMessage = null;
     }
 
     if (productDetailResponse.productDetails.isNotEmpty) {
-      print("gameStore: Restoring past purchases");
       await _inAppPurchase.restorePurchases();
+      if (_disposed) return;
     }
 
-    storeEvent = StoreEvent.ready;
-    notifyListeners();
+    if (storeEvent == StoreEvent.loading) {
+      storeEvent = StoreEvent.ready;
+    }
+    _notify();
   }
 
-  void _listenToPurchaseUpdated(List<PurchaseDetails> purchaseDetailsList) {
-    print("gameStore: Event -> Listener called");
-    purchaseDetailsList.forEach((PurchaseDetails purchaseDetails) async {
+  Future<void> _listenToPurchaseUpdated(
+    List<PurchaseDetails> purchaseDetailsList,
+  ) async {
+    for (final purchaseDetails in purchaseDetailsList) {
+      if (_disposed) return;
       if (purchaseDetails.status == PurchaseStatus.pending) {
         errorMessage = null;
+        statusMessage = null;
         storeEvent = StoreEvent.purchasePending;
-        notifyListeners();
+        _notify();
       } else {
         if (purchaseDetails.status == PurchaseStatus.error) {
-          print("gameStore: Event -> Purchase error");
-          storeEvent = StoreEvent.error;
-          errorMessage = purchaseDetails.error!.message;
-          notifyListeners();
+          _reportError(
+            purchaseDetails.error?.message ?? 'The purchase failed.',
+          );
         } else if (purchaseDetails.status == PurchaseStatus.canceled) {
           errorMessage = null;
+          statusMessage = 'Purchase canceled.';
           storeEvent = StoreEvent.ready;
-          notifyListeners();
+          _notify();
         } else if (purchaseDetails.status == PurchaseStatus.purchased ||
             purchaseDetails.status == PurchaseStatus.restored) {
-          print("gameStore: Event -> Recording purchased item");
           errorMessage = null;
+          statusMessage = 'Your extra ladders are unlocked.';
           _addToPurchases(purchaseDetails);
           storeEvent = StoreEvent.ready;
-          notifyListeners();
+          _notify();
         }
 
         if (purchaseDetails.pendingCompletePurchase &&
             (purchaseDetails.status == PurchaseStatus.restored ||
                 purchaseDetails.status == PurchaseStatus.purchased)) {
-          print("gameStore: Event -> Completing pending purchase");
-          errorMessage = null;
-          storeEvent = StoreEvent.ready;
-          notifyListeners();
-          await _inAppPurchase.completePurchase(purchaseDetails);
+          await completePendingPurchase(purchaseDetails);
         }
       }
-    });
+    }
+  }
+
+  Future<void> restorePurchases() async {
+    if (isBusy || !isAvailable) return;
+    isRestoring = true;
+    errorMessage = null;
+    statusMessage = null;
+    _notify();
+    try {
+      await _inAppPurchase.restorePurchases();
+      statusMessage = hasUnlocked51To100
+          ? 'Your extra ladders are unlocked.'
+          : 'Restore requested. Any purchases found will appear here.';
+    } catch (error) {
+      _reportError(error);
+    } finally {
+      isRestoring = false;
+      _notify();
+    }
   }
 
   @override
   void dispose() {
+    _disposed = true;
     _subscription?.cancel();
     super.dispose();
   }
@@ -153,17 +187,32 @@ class GameStore extends ChangeNotifier {
   }
 
   Future<bool> purchaseProduct(ProductDetails productDetails) async {
-    PurchaseParam purchaseParam = PurchaseParam(
-      productDetails: productDetails,
-      applicationUserName: null,
-    );
-
-    return await _inAppPurchase.buyNonConsumable(purchaseParam: purchaseParam);
+    if (isBusy || !isAvailable || hasUnlocked51To100) return false;
+    errorMessage = null;
+    statusMessage = null;
+    storeEvent = StoreEvent.purchasePending;
+    _notify();
+    try {
+      final started = await _inAppPurchase.buyNonConsumable(
+        purchaseParam: PurchaseParam(productDetails: productDetails),
+      );
+      if (!started) {
+        _reportError('The purchase could not be started. Please try again.');
+      }
+      return started;
+    } catch (error) {
+      _reportError(error);
+      return false;
+    }
   }
 
   Future<void> completePendingPurchase(PurchaseDetails purchase) async {
     if (purchase.pendingCompletePurchase) {
-      await _inAppPurchase.completePurchase(purchase);
+      try {
+        await _inAppPurchase.completePurchase(purchase);
+      } catch (error) {
+        _reportError(error);
+      }
     }
   }
 }

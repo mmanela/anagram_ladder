@@ -106,6 +106,15 @@ class _AnagramLadderAppState extends State<AnagramLadderApp> {
   );
 
   @override
+  void dispose() {
+    _routerDelegate?.dispose();
+    _gameState.dispose();
+    _gameStore.dispose();
+    _navigator.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [

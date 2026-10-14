@@ -64,6 +64,16 @@ void main() {
   });
 
   test(
+    'disposing during game loading does not notify disposed listeners',
+    () async {
+      final temporary = GameState(store);
+      final loading = temporary.initialize();
+      temporary.dispose();
+      await expectLater(loading, completes);
+    },
+  );
+
+  test(
     'resume remembers the last ladder and supports older v5 saves',
     () async {
       expect(state.resumeLevel, isNull);
