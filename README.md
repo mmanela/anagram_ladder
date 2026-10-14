@@ -127,14 +127,39 @@ Neither is needed for the debug APK or iOS simulator build below.
 
 ```sh
 flutter analyze
-flutter test
+flutter test --coverage
 flutter build apk --debug
 flutter build ios --simulator
 flutter build web
 ```
 
-GitHub Actions runs analysis, regression tests, and Android, iOS simulator, and web
-builds. Widget tests check that completion appears after the final-rung animation,
+GitHub Actions runs on pull requests, pushes to `main`, and manual runs from the
+Actions tab. The `checks` job validates workflow syntax with actionlint, runs
+analysis, and runs regression tests with coverage. Coverage totals appear in the
+job summary, with the full `lcov.info` available as the `dart-coverage` artifact.
+Coverage is reported without imposing an arbitrary minimum percentage.
+
+Android/web and iOS builds run in parallel after checks pass. Existing
+`android-and-web` and `ios` check names are retained; they fail rather than
+silently passing as skipped when prerequisite checks fail. Superseded runs are
+cancelled, jobs have time limits, and all jobs use read-only repository
+permissions. Locked dependencies and the pinned Flutter version are used in
+every job. Flutter, Pub, and Gradle downloads are cached between runs.
+
+Successful builds upload `android-debug-apk`, `web-build`, and `ios-simulator-app`
+artifacts, retained for seven days. Download them from the workflow run's
+Artifacts section. The simulator app is a tar archive to preserve executable
+permissions and symlinks; extract it before installing on a simulator compatible
+with the build's architecture. It is not an iPhone or App Store distribution.
+Web artifacts must be served over HTTP. These workflows do not publish releases,
+deploy a website, or require signing credentials.
+
+Dependabot opens weekly Monday pull requests for Dart packages and GitHub
+Actions. Dart minor/patch updates are grouped; major updates stay
+separate. Updates still require review and CI. Flutter SDK and native build-tool
+upgrades remain manual so they can be coordinated together.
+
+Widget tests check that completion appears after the final-rung animation,
 restart dismisses the popup immediately, reset progress survives reopening, and
 Next Level opens a playable board. They also cover full-ladder play, automatic
 cascades (including edits during the cascade delay), replay after restart, hint
