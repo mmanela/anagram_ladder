@@ -49,6 +49,10 @@ puzzles, free hints, level access, and v5 saved-progress format.
   answers. These are familiarity tiers, not exact word-frequency scores.
   Hints and completion controls scroll and support large text. Letter glyphs
   retain a scaling cap so ten-letter words still fit narrow phones.
+- Level completion dims and blocks the board behind a rounded summary card,
+  shows difficulty progress, and gives Next Level the primary action.
+  Restart and Level Screen remain available, with trophy styling for newly
+  completed difficulties and the full game.
 - Settings includes optional haptic feedback, email feedback, a confirmed
   progress reset, and version information. Resetting progress preserves the
   haptic preference.
