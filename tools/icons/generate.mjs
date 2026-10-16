@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { mkdir, readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
 
@@ -40,6 +40,7 @@ for (const icon of manifest.icons) {
 }
 addTarget('web/favicon.png', 32);
 addTarget('assets/GooglePlay/ag_logo_simple_512.png', 512);
+addTarget('assets/app_icon.png', 512);
 
 // Also refresh unused sizes retained in the existing iOS asset catalog folder.
 for (const size of [16, 32, 64, 128, 256, 512]) {
@@ -60,3 +61,32 @@ for (const [path, size] of targets) {
 }
 
 console.log(`Generated and verified ${targets.size} icons from assets/app_icon.svg.`);
+
+const launchTargets = [
+  ['ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImage.png', 120],
+  ['ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImage@2x.png', 240],
+  ['ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImage@3x.png', 360],
+  ...Object.entries({ mdpi: 120, hdpi: 180, xhdpi: 240, xxhdpi: 360, xxxhdpi: 480 })
+    .map(([density, size]) => [
+      `android/app/src/main/res/drawable-${density}/launch_icon.png`, size,
+    ]),
+];
+for (const [path, size] of launchTargets) {
+  const output = new URL(path, root);
+  await mkdir(new URL('.', output), { recursive: true });
+  const mask = Buffer.from(
+    `<svg width="${size}" height="${size}"><rect width="${size}" height="${size}" rx="${size * 28 / 120}" fill="white"/></svg>`,
+  );
+  await sharp(source, { density: 384 })
+    .resize(size, size)
+    .composite([{ input: mask, blend: 'dest-in' }])
+    .png()
+    .toFile(fileURLToPath(output));
+  const { data, info } = await sharp(fileURLToPath(output))
+    .raw().toBuffer({ resolveWithObject: true });
+  assert.equal(info.width, size, path);
+  assert.equal(info.height, size, path);
+  assert.equal(info.channels, 4, path);
+  assert.equal(data[3], 0, `Launch badge corners must be transparent: ${path}`);
+}
+console.log(`Generated and verified ${launchTargets.length} rounded launch badges.`);

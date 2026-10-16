@@ -243,6 +243,12 @@ The launcher icon is a warm-white ladder on a purple gradient, with no letters.
 launcher sizes, web icons and favicon, and the Google Play listing icon.
 Rounded corners are applied by the platform, not baked into the image.
 In-game logos and the Google Play feature graphic are separate and unchanged.
+Startup uses the same artwork in a compact rounded badge on the warm neutral
+background, with the game title, "Rearrange. Solve. Climb." tagline, and an
+accessible loading indicator. Reduced motion keeps the indicator static, and
+startup has no artificial delay. The layout scrolls on short screens and with
+large text. Native iOS and Android launch screens use matching artwork and
+backgrounds, including the Android 12 system splash screen.
 
 Regenerate the PNGs with Node.js 20 or later:
 
@@ -252,7 +258,9 @@ npm run generate --prefix tools/icons
 ```
 
 The generator checks dimensions and opacity, including the 1024px App Store
-icon. Android 8 and later use the matching adaptive vector layers in
+icon. It also generates `assets/app_icon.png` for Flutter and the rounded native
+launch badges, whose transparent corners are checked separately.
+Android 8 and later use the matching adaptive vector layers in
 `android/app/src/main/res/drawable/ic_launcher_*.xml`; Android 13 and later also
 have a monochrome layer for themed icons. Keep these vectors in sync when
 editing the SVG. Adaptive foreground artwork is scaled into the safe zone so
