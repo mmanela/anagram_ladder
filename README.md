@@ -148,6 +148,26 @@ unchanged. Android release builds still require your private `android/key.proper
 and keystore. iOS device and App Store builds require your Apple signing setup.
 Neither is needed for the debug APK or iOS simulator build below.
 
+### Xcode Cloud
+
+Use `ios/Runner.xcworkspace` and the shared `Runner` scheme in the Xcode Cloud
+workflow. Xcode Cloud automatically runs `ios/ci_scripts/ci_post_clone.sh` after
+checking out the repository, before resolving Swift packages. The script installs
+Flutter 3.47.7, downloads the iOS artifacts, restores locked dependencies, and
+generates the release configuration and `FlutterGeneratedPluginSwiftPackage`.
+Keep its Flutter version aligned with the GitHub Actions workflow.
+
+The SDK stays available for Xcode's Flutter build phases. Xcode Cloud handles
+archiving and signing; the preparation step does not build or sign the app.
+It uses `CI_BUILD_NUMBER` for the app's build number. When distributing builds,
+ensure the workflow's next build number exceeds any previously uploaded build
+for the same app version.
+
+A missing `Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage` error
+means package resolution ran without Flutter preparation. Run a new cloud build
+from a branch containing the post-clone script. Do not commit the generated
+package, `Generated.xcconfig`, or a local Flutter SDK to fix this error.
+
 ## Checks and builds
 
 ```sh
