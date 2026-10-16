@@ -9,10 +9,14 @@ void main() {
     late File log;
     late Map<String, String> environment;
     final script = File('ios/ci_scripts/ci_post_clone.sh').absolute.path;
+    final macScript = File('macos/ci_scripts/ci_post_clone.sh').absolute.path;
 
     setUp(() async {
       temporary = await Directory.systemTemp.createTemp('xcode cloud test ');
       repository = await Directory('${temporary.path}/repository').create();
+      final scripts = await Directory('${repository.path}/ios/ci_scripts')
+          .create(recursive: true);
+      await File(script).copy('${scripts.path}/ci_post_clone.sh');
       final bin = await Directory('${temporary.path}/bin').create();
       log = File('${temporary.path}/commands.log');
       final flutter = File('${temporary.path}/flutter');
@@ -52,12 +56,44 @@ cp "$TEST_FLUTTER" "$1/bin/flutter"
       await temporary.delete(recursive: true);
     });
 
-    Future<ProcessResult> runScript() => Process.run(
+    Future<ProcessResult> runScript({bool macos = false}) => Process.run(
       '/bin/sh',
-      [script],
+      [macos ? macScript : script],
       environment: environment,
       workingDirectory: temporary.path,
     );
+
+    test('Mac wrapper prepares macOS without iOS codesigning flags', () async {
+      final result = await runScript(macos: true);
+      expect(result.exitCode, 0, reason: '${result.stderr}');
+      final commands = await log.readAsLines();
+      expect(commands, hasLength(4));
+      expect(commands.skip(1), [
+        '${repository.path}|precache --macos',
+        '${repository.path}|pub get --enforce-lockfile',
+        '${repository.path}|build macos --release --config-only '
+            '--no-pub --build-number=123',
+      ]);
+    });
+
+    test('Mac configuration failure stops cloud preparation', () async {
+      environment['TEST_FAIL_COMMAND'] =
+          'build macos --release --config-only --no-pub --build-number=123';
+      final result = await runScript(macos: true);
+      expect(result.exitCode, 42);
+      expect(
+        (await log.readAsLines()).last,
+        '${repository.path}|${environment['TEST_FAIL_COMMAND']}',
+      );
+    });
+
+    test('unsupported platforms fail before downloading anything', () async {
+      environment['ANAGRAM_LADDER_PLATFORM'] = 'windows';
+      final result = await runScript();
+      expect(result.exitCode, isNot(0));
+      expect(result.stderr, contains('Unsupported Apple platform: windows'));
+      expect(log.existsSync(), isFalse);
+    });
 
     test(
       'prepares locked dependencies and release configuration in order',

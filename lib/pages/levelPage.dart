@@ -53,6 +53,7 @@ class _LevelPageState extends State<LevelPage>
   Object? _loadError;
   final _activeLettersKey = GlobalKey();
   final _boardLayerKey = GlobalKey();
+  final _letterFocusNodes = <int, FocusNode>{};
   late final AnimationController _rungController;
   Rect? _flightFrom;
   Rect? _flightTo;
@@ -160,6 +161,9 @@ class _LevelPageState extends State<LevelPage>
     _completionTimer?.cancel();
     _cascadeTimer?.cancel();
     _rungController.dispose();
+    for (final node in _letterFocusNodes.values) {
+      node.dispose();
+    }
     super.dispose();
   }
 
@@ -216,7 +220,9 @@ class _LevelPageState extends State<LevelPage>
                 title: const Text('How to play'),
                 content: const Text(
                   'Drag letters horizontally, or tap a letter and then its '
-                  'new position.\n\nEach solved word adds new letters. '
+                  'new position.\n\nWith a keyboard, Tab to a letter and use '
+                  'Left or Right to move it. Enter or Space selects a letter; '
+                  'Escape clears the selection.\n\nEach solved word adds new letters. '
                   'Rearrange them to climb the next rung.\n\n'
                   'Hint shows the first and last letters of one possible word. '
                   'There is no timer or penalty for using hints.',
@@ -482,6 +488,7 @@ class _LevelPageState extends State<LevelPage>
                         _selectedLetter == null
                             ? 'Drag to reorder, or tap a letter then its new position. '
                                   'Each solved word adds new letters.'
+                                  '${Theme.of(context).platform == TargetPlatform.macOS ? ' Tab to a letter, then use Left or Right to move it.' : ''}'
                             : 'Tap another position to move this letter there.',
                         textAlign: TextAlign.center,
                       ),
@@ -503,6 +510,10 @@ class _LevelPageState extends State<LevelPage>
     final colors = Theme.of(context).colorScheme;
     final selected = index == _selectedLetter;
     final busy = _levelComplete || _rungInFlight;
+    final focusNode = _letterFocusNodes.putIfAbsent(
+      index,
+      () => FocusNode(debugLabel: 'Letter $index'),
+    );
     void select() {
       if (busy) return;
       if (_selectedLetter != null && !selected) {
@@ -520,6 +531,8 @@ class _LevelPageState extends State<LevelPage>
       key: ValueKey('letter-$index'),
       button: !busy,
       selected: selected,
+      focusable: !busy,
+      focused: focusNode.hasFocus,
       label:
           'Letter ${activeLetters[index]}, '
           'position ${index + 1} of ${activeLetters.length}',
@@ -533,40 +546,80 @@ class _LevelPageState extends State<LevelPage>
               if (index < activeLetters.length - 1)
                 _moveRightAction: () => _moveLetter(index, index + 1),
             },
-      child: ExcludeSemantics(
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: busy ? null : select,
-          child: AnimatedContainer(
-            duration: _solveDuration,
-            margin: const EdgeInsets.all(1),
-            padding: const EdgeInsets.all(2),
-            decoration: BoxDecoration(
-              color: _levelComplete
-                  ? const Color(0xFF256144)
-                  : selected
-                  ? colors.primaryContainer
-                  : colors.surfaceContainerLowest,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: _levelComplete
-                    ? const Color(0xFF256144)
-                    : selected
-                    ? colors.primary
-                    : colors.outlineVariant,
-                width: selected ? 2 : 1,
-              ),
-            ),
-            child: Center(
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  activeLetters[index],
-                  textScaler: dimensions.textScaler,
-                  style: TextStyle(
-                    fontSize: dimensions.boxFontSize,
-                    fontWeight: FontWeight.w700,
-                    color: _levelComplete ? Colors.white : colors.onSurface,
+      child: Focus(
+        focusNode: focusNode,
+        canRequestFocus: !busy,
+        includeSemantics: false,
+        onFocusChange: (_) => setState(() {}),
+        onKeyEvent: (_, event) {
+          if (busy ||
+              (event is! KeyDownEvent && event is! KeyRepeatEvent) ||
+              HardwareKeyboard.instance.isControlPressed ||
+              HardwareKeyboard.instance.isMetaPressed ||
+              HardwareKeyboard.instance.isAltPressed) {
+            return KeyEventResult.ignored;
+          }
+          final key = event.logicalKey;
+          if (key == LogicalKeyboardKey.arrowLeft ||
+              key == LogicalKeyboardKey.arrowRight) {
+            final destination =
+                index + (key == LogicalKeyboardKey.arrowLeft ? -1 : 1);
+            if (destination >= 0 && destination < activeLetters.length) {
+              _moveLetter(index, destination);
+              _letterFocusNodes[destination]?.requestFocus();
+            }
+            return KeyEventResult.handled;
+          }
+          if (event is KeyRepeatEvent) return KeyEventResult.ignored;
+          if (key == LogicalKeyboardKey.enter ||
+              key == LogicalKeyboardKey.space) {
+            select();
+            return KeyEventResult.handled;
+          }
+          if (key == LogicalKeyboardKey.escape && _selectedLetter != null) {
+            setState(() => _selectedLetter = null);
+            return KeyEventResult.handled;
+          }
+          return KeyEventResult.ignored;
+        },
+        child: ExcludeSemantics(
+          child: MouseRegion(
+            cursor: busy ? SystemMouseCursors.basic : SystemMouseCursors.click,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: busy ? null : select,
+              child: AnimatedContainer(
+                duration: _solveDuration,
+                margin: const EdgeInsets.all(1),
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: _levelComplete
+                      ? const Color(0xFF256144)
+                      : selected || focusNode.hasFocus
+                      ? colors.primaryContainer
+                      : colors.surfaceContainerLowest,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: _levelComplete
+                        ? const Color(0xFF256144)
+                        : selected || focusNode.hasFocus
+                        ? colors.primary
+                        : colors.outlineVariant,
+                    width: selected || focusNode.hasFocus ? 2 : 1,
+                  ),
+                ),
+                child: Center(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      activeLetters[index],
+                      textScaler: dimensions.textScaler,
+                      style: TextStyle(
+                        fontSize: dimensions.boxFontSize,
+                        fontWeight: FontWeight.w700,
+                        color: _levelComplete ? Colors.white : colors.onSurface,
+                      ),
+                    ),
                   ),
                 ),
               ),

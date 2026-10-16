@@ -2,11 +2,13 @@ import 'package:anagram_ladder/models/gameState.dart';
 import 'package:anagram_ladder/navigation/gameRouteInformationParser.dart';
 import 'package:anagram_ladder/navigation/gameRouterDelegate.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'models/gameStore.dart';
 import 'navigation/gameRouteNavigator.dart';
+import 'navigation/gameRoutePath.dart';
 
 void main() {
   // Disabling for now since google store forces address publication
@@ -24,6 +26,7 @@ class AnagramLadderApp extends StatefulWidget {
 }
 
 class _AnagramLadderAppState extends State<AnagramLadderApp> {
+  static const _menuChannel = MethodChannel('anagram_ladder/menu');
   GameRouteNavigator _navigator = GameRouteNavigator();
   GameRouterDelegate? _routerDelegate;
   GameRouteInformationParser _routeInformationParser =
@@ -47,6 +50,14 @@ class _AnagramLadderAppState extends State<AnagramLadderApp> {
       DeviceOrientation.landscapeRight,
     ]);
     _routerDelegate = GameRouterDelegate(_navigator, _gameState, _gameStore);
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.macOS) {
+      _menuChannel.setMethodCallHandler((call) async {
+        if (call.method != 'settings') {
+          throw MissingPluginException('Unknown menu action: ${call.method}');
+        }
+        _navigator.goto(GameRoutePath.settings());
+      });
+    }
   }
 
   final _theme = ThemeData(
@@ -107,6 +118,9 @@ class _AnagramLadderAppState extends State<AnagramLadderApp> {
 
   @override
   void dispose() {
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.macOS) {
+      _menuChannel.setMethodCallHandler(null);
+    }
     _routerDelegate?.dispose();
     _gameState.dispose();
     _gameStore.dispose();
