@@ -122,6 +122,27 @@ use Swift Package Manager, so `pod install` is no longer needed. Flutter generat
 the Swift package integration during a build. Leave Flutter's Swift Package
 Manager support enabled.
 
+### Opening iOS in Xcode
+
+Before opening a fresh checkout or worktree in Xcode, run these commands from
+that checkout's repository root:
+
+```sh
+flutter pub get --enforce-lockfile
+flutter build ios --simulator --config-only --no-pub
+open ios/Runner.xcworkspace
+```
+
+The configuration step generates `ios/Flutter/Generated.xcconfig` and the local
+Swift package integration. These machine-specific files are intentionally not
+committed. Open `Runner.xcworkspace` from the same checkout, not just the `ios`
+folder or a project from a different checkout.
+
+If Xcode reports a missing `Generated.xcconfig`, repeat the preparation commands.
+Errors mentioning `Pods-Runner` file lists or an iOS 9 deployment target indicate
+an older project configuration: the current project uses Swift Package Manager
+and targets iOS 15. Close the older project and reopen this checkout's workspace.
+
 The existing application IDs and Android release signing configuration are
 unchanged. Android release builds still require your private `android/key.properties`
 and keystore. iOS device and App Store builds require your Apple signing setup.
