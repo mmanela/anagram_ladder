@@ -114,6 +114,8 @@ jobs:
     if: ${{ !cancelled() }}
     runs-on: macos-latest
     timeout-minutes: 40
+    env:
+      XCODE_XCCONFIG_FILE: ${{ github.workspace }}/macos/Runner/Configs/CI.xcconfig
     steps:
       - name: Require passing checks
         env:
