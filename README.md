@@ -189,7 +189,10 @@ flutter build macos --release --no-pub
 
 The release app is `build/macos/Build/Products/Release/Anagram Ladder.app`.
 Local and GitHub Actions builds use ad-hoc signing, not App Store distribution
-credentials. The window starts at 900 by 760 logical pixels, remembers its frame,
+credentials. GitHub Actions sets `XCODE_XCCONFIG_FILE` to
+`.github/ci/macos-ci.xcconfig` for both the release build and native tests,
+overriding developer signing settings without changing App Store configuration.
+The window starts at 900 by 760 logical pixels, remembers its frame,
 and can resize down to 480 by 480. Mouse dragging, trackpad scrolling, click-to-move,
 and keyboard controls use the shared gameplay implementation. The native
 Anagram Ladder > Settings menu and Command-comma open the in-app Settings page.
