@@ -44,7 +44,7 @@ void main() {
     '/world/6/level/not-a-number',
     '/world/6/level/0',
     '/world/6/level/-1',
-    '/world/6/level/101',
+    '/world/6/level/251',
     '/world/6/not-a-level/1',
     '/world/6/level/1/extra',
   ]) {

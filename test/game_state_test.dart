@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:anagram_ladder/models/gameState.dart';
+import 'package:anagram_ladder/anagram/anagramLadderData.dart';
 import 'package:anagram_ladder/models/gameStore.dart';
 import 'package:anagram_ladder/models/levelState.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -19,7 +20,9 @@ class TestUnlockStore extends GameStore {
 }
 
 Future<LevelState> completedLevel(GameState state, int world, int level) async {
-  final ladder = await state.getLevelOrLoad(world, level);
+  final ladder = level <= state.getWorldLevelCount(world)
+      ? await state.getLevelOrLoad(world, level)
+      : (await AnagramLadderData.getLadders(world))[level - 1];
   final rungs = ladder.getBottomUp();
   return LevelState(
     world,
@@ -158,7 +161,7 @@ void main() {
     },
   );
 
-  test('unlocking loads 100 levels without losing existing progress', () async {
+  test('unlocking loads 250 levels without losing existing progress', () async {
     await state.persistLevelState(await completedLevel(state, 6, 1));
     final reloaded = Completer<void>();
     void onReload() {
@@ -172,17 +175,61 @@ void main() {
     await reloaded.future.timeout(const Duration(seconds: 5));
     state.removeListener(onReload);
 
-    expect(state.maxLevelsPerWorld, 100);
+    expect(state.maxLevelsPerWorld, 250);
     expect(state.shouldAdverstiseMoreLevels, isFalse);
     for (final world in GameState.worldIds) {
-      expect(state.getWorldLevelCount(world), 100);
+      expect(state.getWorldLevelCount(world), 250);
+      expect(state.getWorldCompletionInfo(world).levelCount, 250);
+      expect((await state.getLevelOrLoad(world, 250)).letterCount, world);
     }
     expect(state.getLevelState(6, 1).isWon, isTrue);
     expect(state.getWorldCompletionInfo(6).completedCount, 1);
-    expect(state.getWorldCompletionInfo(6).percent, 1 / 100);
+    expect(state.getWorldCompletionInfo(6).percent, 1 / 250);
+    await expectLater(state.getLevelOrLoad(6, 251), throwsRangeError);
     final next = state.getNextUnfinishedLevel(6, 50);
     expect(next?.world, 6);
     expect(next?.level, 51);
+    expect(state.getNextUnfinishedLevel(6, 100)?.level, 101);
+    expect(state.getNextUnfinishedLevel(6, 200)?.level, 201);
+    expect(state.getNextUnfinishedLevel(6, 249)?.level, 250);
+    expect(state.getNextUnfinishedLevel(6, 250)?.world, 7);
+    expect(state.getNextUnfinishedLevel(6, 250)?.level, 1);
+    expect(state.getNextUnfinishedLevel(10, 250), isNull);
+
+    for (final level in [100, 101, 200, 201, 250]) {
+      await state.persistLevelState(await completedLevel(state, 6, level));
+    }
+    await state.initialize(force: true);
+    for (final level in [1, 100, 101, 200, 201, 250]) {
+      expect(state.getLevelState(6, level).isWon, isTrue);
+    }
+    expect(state.getWorldCompletionInfo(6).completedCount, 6);
+    expect(state.getWorldCompletionInfo(6).percent, 6 / 250);
+
+    final preferences = await SharedPreferences.getInstance();
+    for (final level in [145, 146]) {
+      final ladder = await state.getLevelOrLoad(6, level);
+      final oldRungs = ladder.getBottomUp().skip(1).toList();
+      await LevelState(
+        6,
+        level,
+        6,
+        level == 145 ? 2 : 1,
+        2,
+        oldRungs.map((rung) => rung.words.first.split('')).toList(),
+      ).save(preferences);
+    }
+    await state.initialize(force: true);
+    final completedShort = state.getLevelState(6, 145);
+    expect(completedShort.isWon, isTrue);
+    expect(completedShort.rungCount, 3);
+    expect(completedShort.levelLetters, hasLength(3));
+    final unfinishedShort = state.getLevelState(6, 146);
+    expect(unfinishedShort.isWon, isFalse);
+    expect(unfinishedShort.currentRung, 0);
+    expect(unfinishedShort.rungCount, 3);
+    expect(unfinishedShort.levelLetters.map((row) => row.length), [4, 5, 6]);
+    expect(state.getWorldCompletionInfo(6).completedCount, 7);
   });
 
   test('reset removes saved progress and clears completion counts', () async {

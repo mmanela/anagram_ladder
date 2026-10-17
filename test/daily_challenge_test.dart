@@ -41,20 +41,21 @@ void main() {
       final counts = {for (final world in GameState.worldIds) world: 0};
       for (var day = 0; day < DailyChallenge.puzzleCount; day++) {
         final challenge = DailyChallenge(DateTime(2026, 10, 14 + day));
-        expect(challenge.level, inInclusiveRange(1, 50));
+        expect(challenge.level, inInclusiveRange(1, 250));
         expect(GameState.worldIds, contains(challenge.world));
         puzzles.add((challenge.world, challenge.level));
         counts.update(challenge.world, (count) => count + 1);
-        final ladder = await game.getLevelOrLoad(
-          challenge.world,
-          challenge.level,
-        );
+        final ladder = await game.getDailyLadder(challenge);
         expect(ladder.letterCount, challenge.world);
         expect(challenge.difficulty, GameState.worldLabels[challenge.world]);
       }
-      expect(puzzles, hasLength(250));
-      expect(counts.values, everyElement(50));
-      final repeated = DailyChallenge(DateTime(2026, 10, 14 + 250));
+      expect(puzzles, hasLength(1250));
+      expect(counts.values, everyElement(250));
+      expect(game.maxLevelsPerWorld, 50);
+      for (final world in GameState.worldIds) {
+        expect(game.getWorldLevelCount(world), 50);
+      }
+      final repeated = DailyChallenge(DateTime(2026, 10, 14 + 1250));
       expect((repeated.world, repeated.level), (start.world, start.level));
       expect(
         DailyChallenge(DateTime(2026, 3, 9)).dayNumber -
@@ -69,12 +70,10 @@ void main() {
 
   test('daily saves and completions do not affect regular progress', () async {
     final day = game.today;
-    final regular = await completedLevel(game, day.world, day.level);
+    final regular = await completedLevel(game, day.world, 1);
     regular.currentRung = 1;
     await game.persistLevelState(regular);
-    final before = jsonEncode(
-      game.getLevelState(day.world, day.level).toJson(),
-    );
+    final before = jsonEncode(game.getLevelState(day.world, 1).toJson());
     final resume = game.resumeLevel!;
     final count = game.getWorldCompletionInfo(day.world).completedCount;
 
@@ -82,10 +81,7 @@ void main() {
     await game.persistDailyState(day, daily);
     expect(game.isDailyCompleted(day), isTrue);
     expect(game.getDailyState(day).isWon, isTrue);
-    expect(
-      jsonEncode(game.getLevelState(day.world, day.level).toJson()),
-      before,
-    );
+    expect(jsonEncode(game.getLevelState(day.world, 1).toJson()), before);
     expect(game.resumeLevel!.world, resume.world);
     expect(game.resumeLevel!.level, resume.level);
     expect(game.getWorldCompletionInfo(day.world).completedCount, count);
@@ -105,7 +101,38 @@ void main() {
             DailyChallenge(DateTime(2026, 10, 14 + offset)).level,
           ),
       ],
+      [(9, 84), (8, 235), (9, 245), (6, 122), (8, 231), (7, 212), (6, 178)],
+    );
+    expect(
+      [
+        for (var offset = 0; offset < 7; offset++)
+          (
+            DailyChallenge.previous(DateTime(2026, 10, 14 + offset)).world,
+            DailyChallenge.previous(DateTime(2026, 10, 14 + offset)).level,
+          ),
+      ],
       [(10, 34), (6, 32), (10, 50), (10, 32), (7, 10), (8, 38), (7, 23)],
+    );
+  });
+
+  test('started v2 dailies keep their original puzzle and progress', () async {
+    final old = DailyChallenge.previous(now);
+    final progress = await completedLevel(game, old.world, old.level);
+    progress.currentRung = 1;
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setString(
+      'daily_v2_progress_${old.dateKey}',
+      jsonEncode(progress.toJson()),
+    );
+    expect(game.today.isPrevious, isTrue);
+    expect((game.today.world, game.today.level), (old.world, old.level));
+    expect(game.getDailyState(game.today).currentRung, 1);
+    progress.currentRung = progress.rungCount;
+    await game.persistDailyState(game.today, progress);
+    expect(game.isDailyCompleted(game.today), isTrue);
+    expect(
+      preferences.containsKey('daily_v3_progress_${old.dateKey}'),
+      isFalse,
     );
   });
 

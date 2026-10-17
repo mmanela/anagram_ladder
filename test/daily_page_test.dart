@@ -79,7 +79,7 @@ Future<LadderLevel> seedDailyFinal(
   DailyChallenge day, {
   bool completed = false,
 }) async {
-  final ladder = await game.getLevelOrLoad(day.world, day.level);
+  final ladder = await game.getDailyLadder(day);
   final rungs = ladder.getBottomUp();
   final solution = ladder.words.firstWhere(
     (word) => !ladder.words.contains(word.substring(1) + word[0]),
@@ -240,10 +240,7 @@ void main() {
     expect(find.byType(LevelPage), findsOneWidget);
     final day = game.today;
     final letters = List<String>.of(game.getDailyState(day).levelLetters.first);
-    final bottom = (await game.getLevelOrLoad(
-      day.world,
-      day.level,
-    )).getBottom();
+    final bottom = (await game.getDailyLadder(day)).getBottom();
     final move =
         [
           for (var from = 0; from < letters.length; from++)
@@ -283,7 +280,7 @@ void main() {
     setViewport(tester, const Size(400, 800));
     final game = await startDailyAt(tester, DateTime(2026, 10, 15));
     final day = game.today;
-    final ladder = await game.getLevelOrLoad(day.world, day.level);
+    final ladder = await game.getDailyLadder(day);
     final rungs = ladder.getBottomUp();
     final solution = rungs.first.words.firstWhere(
       (word) => !rungs.first.words.contains(word.substring(1) + word[0]),

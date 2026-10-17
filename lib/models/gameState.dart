@@ -28,8 +28,9 @@ class GameState with ChangeNotifier, WidgetsBindingObserver {
   final GameStore gameStore;
   SharedPreferences? _sharedPreferences;
   final Map<int, List<LadderLevel>> _ladders = Map();
+  final Map<int, List<LadderLevel>> _allLadders = {};
   static const DefaultLevelsPerWorld = 50;
-  static const UnlockedLevelsPerWorld = 100;
+  static const UnlockedLevelsPerWorld = 250;
   int maxLevelsPerWorld = DefaultLevelsPerWorld;
   final Map<int, WorldCompletionInfo> _worldCompletionInfo = Map();
   bool get shouldAdverstiseMoreLevels =>
@@ -62,12 +63,27 @@ class GameState with ChangeNotifier, WidgetsBindingObserver {
             true) {
       return DailyChallenge.legacy(date);
     }
+    if (_sharedPreferences?.containsKey(
+              'daily_v2_progress_${challenge.dateKey}',
+            ) ==
+            true ||
+        _sharedPreferences?.containsKey(
+              'daily_v2_completed_${challenge.dateKey}',
+            ) ==
+            true) {
+      return DailyChallenge.previous(date);
+    }
     return challenge;
   }
 
   String _dailyKey(DailyChallenge challenge, String part) {
     final selected = dailyForDate(challenge.date);
-    return 'daily_${selected.isLegacy ? 'v1' : 'v2'}_${part}_${selected.dateKey}';
+    final version = selected.isLegacy
+        ? 'v1'
+        : selected.isPrevious
+        ? 'v2'
+        : 'v3';
+    return 'daily_${version}_${part}_${selected.dateKey}';
   }
 
   void refreshDaily() {
@@ -239,6 +255,11 @@ class GameState with ChangeNotifier, WidgetsBindingObserver {
       }
       for (var worldId in worldIds) {
         await getWorldOrLoad(worldId, force: force);
+        if (_ladders[worldId]!.asMap().keys.any(
+          (index) => getLevelState(worldId, index + 1).rungCount == 2,
+        )) {
+          await _migrateShortLadderProgress(worldId);
+        }
         _updateWorldCompletionPercentage(worldId);
       }
     } finally {
@@ -246,6 +267,37 @@ class GameState with ChangeNotifier, WidgetsBindingObserver {
       isLoaded = true;
       if (!_disposed) refreshDaily();
       if (!_disposed) notifyListeners();
+    }
+  }
+
+  Future<void> _migrateShortLadderProgress(int world) async {
+    final preferences = _sharedPreferences!;
+    final ladders = _ladders[world]!;
+    for (var index = 0; index < ladders.length; index++) {
+      final saved = getLevelState(world, index + 1);
+      if (saved.isEmpty || saved.rungCount != 2) continue;
+      final rungs = ladders[index].getBottomUp();
+      if (rungs.length < AnagramLadderBuilder.MinimumRungCount) continue;
+      final rows = rungs.map((rung) {
+        if (!saved.isWon) return List.filled(rung.letterCount, '');
+        final oldAnswer = saved.levelLetters
+            .map((letters) => letters.join())
+            .firstWhere(rung.words.contains, orElse: () => rung.words.first);
+        return oldAnswer.split('');
+      }).toList();
+      if (!saved.isWon) rows[0] = List.of(rungs.first.letters)..shuffle();
+      await LevelState(
+        world,
+        index + 1,
+        saved.isWon ? ladders[index].letterCount : 0,
+        saved.isWon ? rungs.length : 0,
+        rungs.length,
+        rows,
+      ).save(preferences);
+      debugPrint(
+        'Ladder: upgraded short puzzle $world/${index + 1}; '
+        '${saved.isWon ? 'completion preserved' : 'in-progress ladder restarted'}',
+      );
     }
   }
 
@@ -281,9 +333,9 @@ class GameState with ChangeNotifier, WidgetsBindingObserver {
       // No need to load more than once
       return Future.value(_ladders[length]);
     }
-    final world = (await AnagramLadderData.getLadders(length))
-        .take(maxLevelsPerWorld)
-        .toList();
+    final all = await AnagramLadderData.getLadders(length);
+    _allLadders[length] = all;
+    final world = all.take(maxLevelsPerWorld).toList();
     _ladders[length] = world;
     return world;
   }
@@ -291,6 +343,14 @@ class GameState with ChangeNotifier, WidgetsBindingObserver {
   Future<LadderLevel> getLevelOrLoad(int worldNum, int level) async {
     final world = await getWorldOrLoad(worldNum);
     return world[level - 1];
+  }
+
+  Future<LadderLevel> getDailyLadder(DailyChallenge challenge) async {
+    final selected = dailyForDate(challenge.date);
+    final ladders =
+        _allLadders[selected.world] ??
+        await AnagramLadderData.getLadders(selected.world);
+    return ladders[selected.level - 1];
   }
 
   int getWorldLevelCount(int worldNum) {
@@ -373,6 +433,7 @@ class GameState with ChangeNotifier, WidgetsBindingObserver {
         if (key.startsWith('v5_') ||
             key.startsWith('daily_v1_') ||
             key.startsWith('daily_v2_') ||
+            key.startsWith('daily_v3_') ||
             key == 'lastPlayedWorld' ||
             key == 'lastPlayedLevel') {
           await preferences.remove(key);
