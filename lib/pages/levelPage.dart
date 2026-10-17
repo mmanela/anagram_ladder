@@ -102,7 +102,9 @@ class _LevelPageState extends State<LevelPage>
   Future<void> _loadLevel() async {
     final game = context.read<GameState>();
     try {
-      final ladder = await game.getLevelOrLoad(widget.world, widget.level);
+      final ladder = widget.daily == null
+          ? await game.getLevelOrLoad(widget.world, widget.level)
+          : await game.getDailyLadder(widget.daily!);
       if (!mounted) return;
       final saved = widget.daily == null
           ? game.getLevelState(widget.world, widget.level)

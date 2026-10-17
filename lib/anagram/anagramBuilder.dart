@@ -1,11 +1,14 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+
 import 'package:anagram_ladder/datastructures/multiTrie.dart';
 import 'package:trotter/trotter.dart';
 import 'package:more/collection.dart';
+
 import 'fileUtils.dart';
 import 'ladderLevel.dart';
+
 import "package:collection/collection.dart";
 
 enum LogLevel { None, Error, Warning, Info, Verbose }
@@ -14,6 +17,7 @@ class AnagramLadderBuilder {
   static const int RandomSeedNumber = 888;
   final LogLevel _logLevel = LogLevel.Info;
   static const int LaddersPerSeedLength = 250;
+  static const int MinimumRungCount = 3;
   static const int LevelsToRandomize = 1;
   static const int MinimumWordLength = 4;
 
@@ -23,7 +27,7 @@ class AnagramLadderBuilder {
     7: MinimumWordLength,
     8: MinimumWordLength + 1,
     9: MinimumWordLength + 1,
-    10: MinimumWordLength + 1
+    10: MinimumWordLength + 1,
   };
   static const int SeedWordLengthMax = 10;
   static const int SeedWordLengthMin = 6;
@@ -47,7 +51,7 @@ class AnagramLadderBuilder {
     'american-words.60',
     'english-words.60',
     'american-words.70',
-    'english-words.70'
+    'english-words.70',
   ];
   static String getGameLadderSetPath(int length) =>
       'tools/langs/en/processed/ladders_$length.json';
@@ -74,16 +78,32 @@ class AnagramLadderBuilder {
 
     // Letter trie always sorts keys in alphabetically and stores
     // all words that can come from each one
-    _allLetterTrie = MuliTrie<String, String, String>.fromIterable(allWords,
-        parts: (String k) {
-      final s = k.toList(mutable: true)..sort();
-      return s;
-    });
+    _allLetterTrie = MuliTrie<String, String, String>.fromIterable(
+      allWords,
+      parts: (String k) {
+        final s = k.toList(mutable: true)..sort();
+        return s;
+      },
+    );
     _requiredLetterTrie = MuliTrie<String, String, String>.fromIterable(
-        requiredWords, parts: (String k) {
-      final s = k.toList(mutable: true)..sort();
-      return s;
-    });
+      requiredWords,
+      parts: (String k) {
+        final s = k.toList(mutable: true)..sort();
+        return s;
+      },
+    );
+  }
+
+  Future<LadderLevel?> buildLadder(
+    String seed, {
+    int randomSeed = RandomSeedNumber,
+  }) async {
+    if (seed.length < SeedWordLengthMin || seed.length > SeedWordLengthMax) {
+      throw ArgumentError.value(seed, 'seed', 'Expected 6 to 10 letters');
+    }
+    if (_allLetterTrie == null) await _buildLetterTrie();
+    final letters = seed.toList(mutable: true)..sort();
+    return _buildLadder(letters.join(), randomSeed);
   }
 
   Future<void> buildLadders() async {
@@ -96,7 +116,7 @@ class AnagramLadderBuilder {
     final levels = seeds
         .indices()
         .map((i) => _buildLadder(seeds[i], i))
-        .where((e) => e != null)
+        .where((e) => e != null && e.rung + 1 >= MinimumRungCount)
         .toList();
 
     _log("Stop Building Levels", LogLevel.Info);
@@ -104,17 +124,28 @@ class AnagramLadderBuilder {
     _log("Create Top $LaddersPerSeedLength for each max levels", LogLevel.Info);
     final groups = groupBy(levels, (LadderLevel? level) => level!.letterCount);
     _log("Built ${groups.length} groups of levels", LogLevel.Info);
-    groups.entries.forEach((element) async {
+    for (final length in MinimumWordLengthMap.keys) {
+      final levelLadders = groups[length] ?? [];
+      if (levelLadders.length < LaddersPerSeedLength) {
+        throw StateError(
+          'Not enough $length-letter ladders with at least '
+          '$MinimumRungCount rungs: ${levelLadders.length}',
+        );
+      }
+    }
+    for (final element in groups.entries) {
       var levelLadders = element.value.toList();
       _log("Start Sorting Levels for length ${element.key}", LogLevel.Info);
       levelLadders.sort();
       _log("Stop Sorting Levels", LogLevel.Info);
 
-      await writeLadderFile(element.key,
-          levelLadders.cast<LadderLevel>().take(LaddersPerSeedLength).toList());
+      await writeLadderFile(
+        element.key,
+        levelLadders.cast<LadderLevel>().take(LaddersPerSeedLength).toList(),
+      );
 
       printStartingWordHistogram(levelLadders, element.key);
-    });
+    }
 
     // print("Non-4s");
     // levels
@@ -134,6 +165,42 @@ class AnagramLadderBuilder {
     // });
   }
 
+  Future<void> repairShortLadders() async {
+    await _buildLetterTrie();
+    final seeds = await linesFromFile(SeedLetterSetPath);
+    final repaired = <int, List<LadderLevel>>{};
+    for (final length in MinimumWordLengthMap.keys) {
+      final raw = jsonDecode(
+        await File(getGameLadderSetPath(length)).readAsString(),
+      ) as List<dynamic>;
+      final ladders = raw
+          .map((value) => LadderLevel.fromJson(value as Map<String, dynamic>))
+          .toList();
+      final usedSeeds = ladders.map((ladder) => ladder.letters.join()).toSet();
+      final replacements = seeds
+          .where((seed) => seed.length == length && !usedSeeds.contains(seed))
+          .iterator;
+      for (var index = 0; index < ladders.length; index++) {
+        if (ladders[index].rung + 1 >= MinimumRungCount) continue;
+        var ladder = _buildLadder(ladders[index].letters.join(), index);
+        while (ladder == null ||
+            ladder.letterCount != length ||
+            ladder.rung + 1 < MinimumRungCount) {
+          if (!replacements.moveNext()) {
+            throw StateError('Not enough replacement ladders for $length');
+          }
+          ladder = _buildLadder(replacements.current, index);
+        }
+        ladders[index] = ladder;
+        repaired[length] = ladders;
+        _log('Repaired $length-letter ladder ${index + 1}', LogLevel.Info);
+      }
+    }
+    for (final entry in repaired.entries) {
+      await writeLadderFile(entry.key, entry.value);
+    }
+  }
+
   void printStartingWordHistogram(List<LadderLevel?> levels, int levelNum) {
     print("\nDistribution of start words in $levelNum letter words");
     final groupedLadders = levels.take(50).toList();
@@ -141,11 +208,13 @@ class AnagramLadderBuilder {
         .map((e) => e!.getBottom())
         .map((e) => e.letters.join())
         .toList();
-    final countMapFirstLevels =
-        firstLevels.fold<Map<String, int>>(Map<String, int>(), (map, element) {
-      map.update(element, (value) => value + 1, ifAbsent: () => 1);
-      return map;
-    });
+    final countMapFirstLevels = firstLevels.fold<Map<String, int>>(
+      Map<String, int>(),
+      (map, element) {
+        map.update(element, (value) => value + 1, ifAbsent: () => 1);
+        return map;
+      },
+    );
     final pairList = countMapFirstLevels.entries.toList()
       ..sort((e1, e2) {
         return e1.value - e2.value;
@@ -195,7 +264,9 @@ class AnagramLadderBuilder {
   }
 
   LadderLevel? _pickRandom(
-      List<LadderLevel?>? possibleLadders, int randomSeed) {
+    List<LadderLevel?>? possibleLadders,
+    int randomSeed,
+  ) {
     if (possibleLadders == null || possibleLadders.length == 0) {
       return null;
     }
@@ -204,27 +275,31 @@ class AnagramLadderBuilder {
   }
 
   List<LadderLevel?>? getNextLevel(
-      List<String> current, int minWordLength, int randomSeed) {
+    List<String> current,
+    int minWordLength,
+    int randomSeed,
+  ) {
     final joinedLetters = current.join();
+    final cacheKey = '$minWordLength:$joinedLetters';
 
     // Use cache only if the letters are not too short since in that
     // case we want to randomize a bit
     if (current.length > minWordLength + LevelsToRandomize &&
-        _ladderCache.containsKey(joinedLetters)) {
-      return _ladderCache[joinedLetters];
+        _ladderCache.containsKey(cacheKey)) {
+      return _ladderCache[cacheKey];
     }
 
     final requiredWords =
         (_requiredLetterTrie![joinedLetters] ?? Set.identity()).toList();
-    final allWords =
-        (_allLetterTrie![joinedLetters] ?? Set.identity()).toList();
+    final allWords = (_allLetterTrie![joinedLetters] ?? Set.identity())
+        .toList();
 
     if (current.length == minWordLength) {
       if (requiredWords.length == 0) {
         return null; // let the next level be the bottom
       }
       final bottom = [LadderLevel.bottom(current, allWords.length, allWords)];
-      _ladderCache[joinedLetters] = bottom;
+      _ladderCache[cacheKey] = bottom;
       return bottom;
     }
 
@@ -238,58 +313,60 @@ class AnagramLadderBuilder {
 
     if (current.length <= minWordLength + LevelsToRandomize) {
       // Shuffle the order and take the first one that has a next level
-      final randomOrderCombos = combos.toList()..shuffle();
+      final randomOrderCombos = combos.toList()..shuffle(_random);
       for (final combo in randomOrderCombos) {
         var newLevels = getNextLevel(combo, minWordLength, randomSeed);
-        if (newLevels != null) {
+        if (newLevels != null && newLevels.isNotEmpty) {
           bestLevels = newLevels;
           break;
         }
       }
     } else {
-      // Find all sub-ladders that have same max word count
+      // Length wins first; word variety breaks ties between equally long paths.
       final bestMap = Map<int, List<LadderLevel?>>();
-      int maxWordCount = -1;
-      int secondMaxWordCount = -1;
+      int maxRung = -1;
       for (final combo in combos) {
         var newLevels = getNextLevel(combo, minWordLength, randomSeed);
         final newLevel = _pickRandom(newLevels, randomSeed);
         if (newLevel == null) {
           continue;
         }
+        if (newLevel.rung < maxRung) continue;
+        if (newLevel.rung > maxRung) {
+          bestMap.clear();
+          maxRung = newLevel.rung;
+        }
 
         if (bestMap[newLevel.levelWordCount] == null) {
           bestMap[newLevel.levelWordCount] = List.empty(growable: true);
         }
         bestMap[newLevel.levelWordCount]!.add(newLevel);
-        if (newLevel.levelWordCount > maxWordCount) {
-          secondMaxWordCount = max(secondMaxWordCount, maxWordCount);
-        }
-        maxWordCount = max(maxWordCount, newLevel.levelWordCount);
       }
 
-      bestLevels = bestMap[maxWordCount];
-      if (secondMaxWordCount > 0) {
-        bestLevels!.addAll(bestMap[secondMaxWordCount]!);
+      final wordCounts = bestMap.keys.toList()..sort((a, b) => b.compareTo(a));
+      if (wordCounts.isNotEmpty) {
+        bestLevels = [
+          for (final count in wordCounts.take(2)) ...bestMap[count]!,
+        ];
       }
     }
 
     // If this level has no words we will skip the level
     if (requiredWords.length <= 0) {
-      _ladderCache[joinedLetters] = bestLevels ?? List.empty(growable: true);
+      _ladderCache[cacheKey] = bestLevels ?? List.empty(growable: true);
       return bestLevels;
     } else {
       // If null then this must be a new bottom (since nothing below was )
       if (bestLevels == null || bestLevels.isEmpty) {
         //_log("Non4 with $joinedLetters", LogLevel.Info);
         final bottom = [LadderLevel.bottom(current, allWords.length, allWords)];
-        _ladderCache[joinedLetters] = bottom;
+        _ladderCache[cacheKey] = bottom;
         return bottom;
       } else {
         final ladders = bestLevels
             .map((b) => LadderLevel(current, allWords.length, b!, allWords))
             .toList();
-        _ladderCache[joinedLetters] = ladders;
+        _ladderCache[cacheKey] = ladders;
         return ladders;
       }
     }
@@ -335,12 +412,15 @@ class AnagramLadderBuilder {
 
     List<String> wordList1 = await linesFromFile(NounListPath);
     List<String> wordList2 = await linesFromFile(ExtraWordFilePath);
-    allWords..addAll(wordList1)..addAll(wordList2);
-    requiredWords..addAll(wordList1)..addAll(wordList2);
+    allWords
+      ..addAll(wordList1)
+      ..addAll(wordList2);
+    requiredWords
+      ..addAll(wordList1)
+      ..addAll(wordList2);
 
-    final wordsByLength = allWords
-        .where((word) => !blacklist.contains(word))
-        .toList()
+    final wordsByLength =
+        allWords.where((word) => !blacklist.contains(word)).toList()
           ..sort((a, b) => b.length - a.length);
 
     File allWordFile = File(ProcessWordFilePath);
@@ -352,8 +432,10 @@ class AnagramLadderBuilder {
     int maxLen = 0;
     Map<int, int> dist = {};
     Set<String> seedLetterSets = Set.identity();
-    final trie =
-        Trie<String, String, String>.fromIterable([], parts: (p) => p.toList());
+    final trie = Trie<String, String, String>.fromIterable(
+      [],
+      parts: (p) => p.toList(),
+    );
 
     try {
       allWordWriter = allWordFile.openWrite();

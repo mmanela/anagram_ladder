@@ -1,3 +1,4 @@
+import 'package:anagram_ladder/models/gameState.dart';
 import 'package:anagram_ladder/models/gameStore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -8,6 +9,9 @@ class PayPage extends StatelessWidget {
     final store = context.watch<GameStore>();
     final colors = Theme.of(context).colorScheme;
     final pending = store.storeEvent == StoreEvent.purchasePending;
+    const firstPaidLevel = GameState.DefaultLevelsPerWorld + 1;
+    const lastPaidLevel = GameState.UnlockedLevelsPerWorld;
+    const paidLevelCount = lastPaidLevel - GameState.DefaultLevelsPerWorld;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Store')),
@@ -28,7 +32,7 @@ class PayPage extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                     const Text(
-                      'Unlock ladders 51 to 100 in every difficulty. '
+                      'Unlock ladders $firstPaidLevel to $lastPaidLevel in every difficulty. '
                       'A one-time purchase, with no timers or subscriptions.',
                     ),
                     const SizedBox(height: 24),
@@ -78,9 +82,7 @@ class PayPage extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 Text(
-                                  product.description.isNotEmpty
-                                      ? product.description
-                                      : '50 more ladders in every difficulty',
+                                  '$paidLevelCount more ladders in every difficulty',
                                   style: Theme.of(context).textTheme.titleLarge,
                                 ),
                                 const SizedBox(height: 20),

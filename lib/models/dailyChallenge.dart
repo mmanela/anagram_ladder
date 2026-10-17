@@ -6,21 +6,25 @@ class DailyChallenge {
     9: 'Expert',
     10: 'Genius',
   };
-  static const levelsPerDifficulty = 50;
+  static const levelsPerDifficulty = 250;
   static const puzzleCount = levelsPerDifficulty * 5;
   static final _puzzleOrder = _shufflePuzzles();
+  static final _previousPuzzleOrder = _shufflePuzzles(250);
   final DateTime date;
   final bool isLegacy;
+  final bool isPrevious;
 
-  DailyChallenge(DateTime day) : this._(day, false);
+  DailyChallenge(DateTime day) : this._(day, false, false);
 
-  DailyChallenge.legacy(DateTime day) : this._(day, true);
+  DailyChallenge.legacy(DateTime day) : this._(day, true, false);
 
-  DailyChallenge._(DateTime day, this.isLegacy)
+  DailyChallenge.previous(DateTime day) : this._(day, false, true);
+
+  DailyChallenge._(DateTime day, this.isLegacy, this.isPrevious)
     : date = DateTime.utc(day.year, day.month, day.day);
 
-  static List<int> _shufflePuzzles() {
-    final order = List.generate(puzzleCount, (index) => index);
+  static List<int> _shufflePuzzles([int count = puzzleCount]) {
+    final order = List.generate(count, (index) => index);
     var seed = 888;
     for (var index = order.length - 1; index > 0; index--) {
       // Keep the schedule identical on native platforms and the web.
@@ -47,13 +51,14 @@ class DailyChallenge {
       '${date.day.toString().padLeft(2, '0')}';
 
   int get dayNumber => date.difference(DateTime.utc(2026)).inDays;
-  int get _puzzleIndex => _puzzleOrder[dayNumber % puzzleCount];
-  int get world => isLegacy
-      ? 6
-      : difficulties.keys.elementAt(_puzzleIndex ~/ levelsPerDifficulty);
-  int get level => isLegacy
-      ? dayNumber % levelsPerDifficulty + 1
-      : _puzzleIndex % levelsPerDifficulty + 1;
+  int get _levelCount => isLegacy || isPrevious ? 50 : levelsPerDifficulty;
+  int get _puzzleIndex => isPrevious
+      ? _previousPuzzleOrder[dayNumber % _previousPuzzleOrder.length]
+      : _puzzleOrder[dayNumber % puzzleCount];
+  int get world =>
+      isLegacy ? 6 : difficulties.keys.elementAt(_puzzleIndex ~/ _levelCount);
+  int get level =>
+      isLegacy ? dayNumber % _levelCount + 1 : _puzzleIndex % _levelCount + 1;
   String get difficulty => difficulties[world]!;
   String get difficultyDescription => '$difficulty, up to $world letters';
 

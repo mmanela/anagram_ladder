@@ -64,6 +64,26 @@ puzzles, free hints, level access, and v5 saved-progress format.
   purchase failures, supports retry and explicit Restore Purchases, and
   prevents duplicate purchase requests.
 
+## Level access
+
+Each difficulty includes 50 free ladders. The one-time purchase unlocks 200 more,
+levels 51 through 250, for 1,250 playable ladders across all five difficulties.
+The bundled sets already contain 250 unique ladders per difficulty, so the
+expanded unlock uses the existing puzzle sets. Every ladder has at least three
+rungs. Normal levels 145 through 250 have been repaired to meet that minimum;
+all other puzzles and their ordering are unchanged.
+Completed short ladders retain their completion. In-progress short ladders restart
+with the repaired three-rung puzzle; other saved progress is unchanged.
+
+Keep the existing product ID, `anagramladder.levels_51to100.difficulty_all`,
+despite its legacy name so existing purchases and restored purchases unlock
+all 250 levels without another payment. The app and local StoreKit configuration
+show the expanded range. Update the existing product's customer-facing name
+and description in App Store Connect to advertise levels 51 through 250.
+In-app purchase copy derives its range and count from the gameplay limits rather
+than the store's potentially outdated product description. Keep paid-level counts
+in editable text, not baked into logos, screenshots, or other promotional images.
+
 ## Daily ladder
 
 The home screen has a separate daily ladder with a simple completed-today status.
@@ -78,18 +98,19 @@ returning from the background. A ladder already in progress stays on its
 original date, so crossing midnight does not replace its letters or give credit
 to the wrong day.
 
-Selection uses a deterministic shuffled schedule of 250 existing ladders: the
-first 50 from each difficulty. All 250 appear once before the schedule repeats,
-with no generation or changes to purchased-level access. The shuffle uses
+Selection uses a deterministic shuffled schedule of all 1,250 existing ladders,
+250 from each difficulty. All appear once before the schedule repeats.
+Daily play can select paid ladders even without a purchase, without unlocking
+them in regular difficulty selection. The shuffle uses
 explicit integer arithmetic so the schedule matches across native and web builds.
 Date selection uses calendar-day arithmetic rather than elapsed hours,
 so daylight-saving changes do not shift the schedule. There is no backend,
 account, new puzzle generator, timer, or streak penalty. Purchase access does not
 change the selection.
 
-Daily arrangements and completion dates use separate `daily_v2_` preferences.
-Already-started Normal dailies retain their original puzzle, progress, and
-completion in `daily_v1_` preferences rather than changing difficulty mid-game.
+Daily arrangements and completion dates use separate `daily_v3_` preferences.
+Already-started dailies retain their original puzzle, progress, and completion
+in `daily_v1_` or `daily_v2_` preferences rather than changing puzzle mid-game.
 They never change regular ladder progress, difficulty completion, or Continue.
 Replay preserves the completed date. Reset progress clears both regular progress
 and daily results, but preserves haptics and the learned-controls preference.
@@ -294,13 +315,15 @@ mid-flight navigation, rotation, automatic cascades, and reduced motion.
 Instruction tests cover learning and Help on later visits.
 
 Model tests cover saved progress, completion counts, reset, next-level selection
-across difficulties, the 50-to-100-level unlock, trie entries, and restored
+across difficulties, the 50-to-250-level unlock, trie entries, and restored
 purchases. Route tests cover deep-link round-trips, Settings, malformed links,
 and unavailable levels. Store tests cover pending purchases, cancellation,
 transaction and stream errors, product-query errors, and unavailable stores.
 They also cover concurrent connection retries, failed purchase starts,
 explicit restoration, completion failures, disposal during loading, and free
-gameplay while the store is still loading.
+gameplay while the store is still loading. Puzzle-data tests check that all
+250 ladders in each difficulty are distinct and solvable, with valid dictionary
+words and consistent letter additions between rungs.
 All use isolated in-memory preferences and test purchase providers,
 so they do not alter your simulator's progress or contact the store.
 Mac regressions cover keyboard focus and movement, selection/cancellation,
@@ -329,6 +352,20 @@ should not be forced forward using dependency overrides.
 ## Source
 - The main game is stored in the lib folder
 - The tools for pre-processing word files is stored in the tools folder
+
+Ladder generation prioritizes longer paths before word variety and requires
+at least three rungs and 250 puzzles per difficulty. Length is maximized within
+the existing vocabulary rules: Normal and Hard start at four letters or longer;
+Daunting, Expert, and Genius start at five letters or longer. Cache entries
+include that minimum length so results from one difficulty cannot shorten another.
+Regression tests independently check the longest possible path for all 1,250
+bundled seeds. Existing three-or-more-rung puzzle layouts are not regenerated.
+To repair only short
+ladders without regenerating or reordering the remaining puzzles:
+
+```sh
+dart run tools/main.dart repair_ladders
+```
 
 ## App icon
 

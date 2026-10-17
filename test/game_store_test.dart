@@ -59,10 +59,12 @@ class TestPurchasePlatform extends InAppPurchasePlatform {
   }
 }
 
-ProductDetails testProduct() => ProductDetails(
+ProductDetails testProduct({
+  String description = '200 more ladders in every difficulty',
+}) => ProductDetails(
   id: GameStore.productUnlock51to100,
   title: 'Extra ladders',
-  description: '50 more ladders in every difficulty',
+  description: description,
   price: r'$2.99',
   rawPrice: 2.99,
   currencyCode: 'USD',
