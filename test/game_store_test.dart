@@ -132,6 +132,30 @@ void main() {
     );
   }
 
+  test(
+    'macOS keeps product queries, purchases and restoration enabled',
+    () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+      store.dispose();
+      store = GameStore();
+      platform.products.add(testProduct());
+      await store.initialize();
+      expect(store.isAvailable, isTrue);
+      expect(store.products.single.id, GameStore.productUnlock51to100);
+      expect(platform.restoreCalls, 1);
+      expect(await store.purchaseProduct(store.products.single), isTrue);
+      expect(platform.purchaseCalls, 1);
+      final purchase = purchaseUpdate(PurchaseStatus.purchased)
+        ..pendingCompletePurchase = true;
+      platform.updates.add([purchase]);
+      await Future<void>.delayed(Duration.zero);
+      expect(store.hasUnlocked51To100, isTrue);
+      expect(platform.completed, [purchase]);
+      await store.restorePurchases();
+      expect(platform.restoreCalls, 2);
+    },
+  );
+
   test('disposing the store stops listening to purchase updates', () {
     expect(platform.updates.hasListener, isTrue);
     store.dispose();

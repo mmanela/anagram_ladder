@@ -109,6 +109,43 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  macos:
+    needs: checks
+    if: ${{ !cancelled() }}
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - name: Require passing checks
+        env:
+          CHECK_RESULT: ${{ needs.checks.result }}
+        run: test "$CHECK_RESULT" = success
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - name: Restore locked dependencies
+        run: flutter pub get --enforce-lockfile
+      - name: Build macOS release app
+        run: flutter build macos --release --no-pub
+      - name: Test native Mac window and menus
+        run: >-
+          xcodebuild -workspace macos/Runner.xcworkspace -scheme Runner
+          -configuration Release -destination 'platform=macOS'
+          -derivedDataPath build/macos -quiet test
+      - name: Archive Mac app with executable permissions
+        run: tar -czf build/macos-app.tar.gz -C build/macos/Build/Products/Release "Anagram Ladder.app"
+      - name: Upload macOS app
+        uses: actions/upload-artifact@v7
+        with:
+          name: macos-app
+          path: build/macos-app.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+
   ios:
     needs: checks
     if: ${{ !cancelled() }}

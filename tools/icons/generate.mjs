@@ -15,11 +15,14 @@ function addTarget(path, size) {
 }
 
 const iosDirectory = 'ios/Runner/Assets.xcassets/AppIcon.appiconset/';
-const catalog = JSON.parse(await readFile(new URL(`${iosDirectory}Contents.json`, root)));
-for (const image of catalog.images) {
-  const [width, height] = image.size.split('x').map(Number);
-  assert.equal(width, height, `Non-square icon: ${image.filename}`);
-  addTarget(`${iosDirectory}${image.filename}`, width * Number.parseFloat(image.scale));
+const macosDirectory = 'macos/Runner/Assets.xcassets/AppIcon.appiconset/';
+for (const directory of [iosDirectory, macosDirectory]) {
+  const catalog = JSON.parse(await readFile(new URL(`${directory}Contents.json`, root)));
+  for (const image of catalog.images) {
+    const [width, height] = image.size.split('x').map(Number);
+    assert.equal(width, height, `Non-square icon: ${image.filename}`);
+    addTarget(`${directory}${image.filename}`, width * Number.parseFloat(image.scale));
+  }
 }
 
 for (const [density, size] of Object.entries({
@@ -49,6 +52,30 @@ for (const size of [16, 32, 64, 128, 256, 512]) {
 
 for (const [path, size] of targets) {
   const output = fileURLToPath(new URL(path, root));
+  if (path.startsWith(macosDirectory)) {
+    const artworkSize = Math.round(size * 0.8);
+    const mask = Buffer.from(
+      `<svg width="${artworkSize}" height="${artworkSize}"><rect width="${artworkSize}" height="${artworkSize}" rx="${artworkSize * 0.22}" fill="white"/></svg>`,
+    );
+    const artwork = await sharp(source, { density: 384 })
+      .resize(artworkSize, artworkSize)
+      .composite([{ input: mask, blend: 'dest-in' }])
+      .png()
+      .toBuffer();
+    await sharp({
+      create: { width: size, height: size, channels: 4, background: '#00000000' },
+    })
+      .composite([{ input: artwork, gravity: 'centre' }])
+      .png()
+      .toFile(output);
+    const { data, info } = await sharp(output).raw().toBuffer({ resolveWithObject: true });
+    assert.equal(info.width, size, path);
+    assert.equal(info.height, size, path);
+    assert.equal(info.channels, 4, path);
+    assert.equal(data[3], 0, `Mac icon corners must be transparent: ${path}`);
+    assert.equal(data[(Math.floor(size / 2) * size + Math.floor(size / 2)) * 4 + 3], 255, path);
+    continue;
+  }
   await sharp(source, { density: 384 })
     .resize(size, size)
     .removeAlpha()

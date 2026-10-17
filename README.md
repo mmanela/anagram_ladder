@@ -1,9 +1,9 @@
-# Anagram Ladder - A mobile word game built with Flutter
+# Anagram Ladder - A word game built with Flutter
 
-[Anagram Ladder](https://matthewmanela.com/anagram-ladder/) is a challenging word game on Android and iPhone for those who love to unscramble long words. The game tasks you to solve a word ladder by unscrambling progressively longer words.
+[Anagram Ladder](https://matthewmanela.com/anagram-ladder/) is a challenging word game with Android, iPhone, and Mac targets for those who love to unscramble long words. The game tasks you to solve a word ladder by unscrambling progressively longer words.
 The game offers a range of difficulties with the most difficult levels requiring unscrambling 10-letter words (very hard!).
 
-This is the full source code to the iOS and Android game. Originally written in
+This is the full source code to the iOS, Android, and macOS game. Originally written in
 2021, the project now uses current Flutter and Dart tooling. Phase one modernizes
 dependencies and platform compatibility. The core-experience polish adds a
 clearer visual hierarchy and smoother controls while keeping the existing
@@ -29,6 +29,10 @@ puzzles, free hints, level access, and v5 saved-progress format.
 - Drag letters horizontally, or tap a letter and then its destination. Vertical
   swipes scroll the board instead of starting a drag. Screen readers expose
   letter positions and Move left / Move right actions.
+- Keyboard users can Tab to a letter and press Left or Right to move it.
+  Focus follows the moved letter. Enter or Space selects a letter, then the
+  same key on another tile moves it there; Escape clears the selection.
+  These controls respect the same solve and transition locks as touch input.
 - Instructions disappear after the first successful move and stay hidden on
   later visits. How to play remains available in the app bar; selecting a letter
   still shows its contextual destination prompt. Resetting progress preserves
@@ -148,6 +152,58 @@ unchanged. Android release builds still require your private `android/key.proper
 and keystore. iOS device and App Store builds require your Apple signing setup.
 Neither is needed for the debug APK or iOS simulator build below.
 
+### macOS
+
+The native Flutter Mac app requires macOS 12 or later and a compatible Xcode
+installation. It uses Swift Package Manager, the existing puzzle assets, and
+the same `com.farblondzshet.anagramladder` bundle identifier as iOS. Its sandbox
+allows outgoing connections for StoreKit; debug/profile builds additionally
+allow the Flutter debugging connection. No broad file access is required.
+
+```sh
+flutter pub get --enforce-lockfile
+flutter run -d macos
+flutter build macos --release --no-pub
+```
+
+The release app is `build/macos/Build/Products/Release/Anagram Ladder.app`.
+Local and GitHub Actions builds use ad-hoc signing, not App Store distribution
+credentials. The window starts at 900 by 760 logical pixels, remembers its frame,
+and can resize down to 480 by 480. Mouse dragging, trackpad scrolling, click-to-move,
+and keyboard controls use the shared gameplay implementation. The native
+Anagram Ladder > Settings menu and Command-comma open the in-app Settings page.
+Standard About, Hide, Quit, and window menus remain native.
+
+Before opening a fresh checkout in Xcode:
+
+```sh
+flutter pub get --enforce-lockfile
+flutter build macos --release --config-only --no-pub
+open macos/Runner.xcworkspace
+```
+
+**Mac App Store setup:** add macOS to the existing app record in App Store
+Connect, retaining the shared bundle ID for universal purchase. In Xcode,
+select your Apple development team and configure Mac App Store signing for
+Runner. The target already enables App Sandbox and In-App Purchase. Keep the
+existing non-consumable product ID
+`anagramladder.levels_51to100.difficulty_all`, and ensure that product is
+available to the macOS platform on the same app record. Do not create an
+unrelated Mac app/product if existing iOS purchasers should retain access.
+
+For local StoreKit testing, select the existing
+`ios/Runner/Configuration.storekit` in the Mac Runner scheme's Run > Options >
+StoreKit Configuration. Exercise purchase, cancellation, and Restore Purchases.
+Then test with Apple's sandbox/TestFlight, including restoring a purchase made
+on iOS. Local StoreKit transactions do not establish cross-platform ownership.
+Archive Runner with a Mac destination and use Xcode Organizer to validate and
+upload. App Store Connect metadata, Mac screenshots, signing/provisioning, and
+Apple review remain account-side setup, not automated by this repository.
+
+Purchases use the existing StoreKit flow and do not block free gameplay.
+Progress and daily results remain local to each installation; adding a Mac
+target does not sync them with an iPhone or iPad.
+
 ### Xcode Cloud
 
 Use `ios/Runner.xcworkspace` and the shared `Runner` scheme in the Xcode Cloud
@@ -168,6 +224,13 @@ means package resolution ran without Flutter preparation. Run a new cloud build
 from a branch containing the post-clone script. Do not commit the generated
 package, `Generated.xcconfig`, or a local Flutter SDK to fix this error.
 
+For Mac, create a separate Xcode Cloud workflow using
+`macos/Runner.xcworkspace`, the shared `Runner` scheme, and a macOS archive
+destination. Its `macos/ci_scripts/ci_post_clone.sh` selects macOS preparation
+through the shared iOS-hosted setup script. It downloads Mac artifacts and
+generates the Mac release configuration and Swift package integration, retaining
+the cloud build number. Xcode Cloud handles signing and archiving as on iOS.
+
 ## Checks and builds
 
 ```sh
@@ -175,6 +238,7 @@ flutter analyze
 flutter test --coverage
 flutter build apk --debug
 flutter build ios --simulator
+flutter build macos --release
 flutter build web
 ```
 
@@ -184,20 +248,23 @@ analysis, and runs regression tests with coverage. Coverage totals appear in the
 job summary, with the full `lcov.info` available as the `dart-coverage` artifact.
 Coverage is reported without imposing an arbitrary minimum percentage.
 
-Android/web and iOS builds run in parallel after checks pass. Existing
+Android/web, iOS, and macOS builds run in parallel after checks pass. Existing
 `android-and-web` and `ios` check names are retained; they fail rather than
 silently passing as skipped when prerequisite checks fail. Superseded runs are
 cancelled, jobs have time limits, and all jobs use read-only repository
 permissions. Locked dependencies and the pinned Flutter version are used in
 every job. Flutter, Pub, and Gradle downloads are cached between runs.
 
-Successful builds upload `android-debug-apk`, `web-build`, and `ios-simulator-app`
-artifacts, retained for seven days. Download them from the workflow run's
+Successful builds upload `android-debug-apk`, `web-build`, `ios-simulator-app`,
+and `macos-app` artifacts, retained for seven days. Download them from the workflow run's
 Artifacts section. The simulator app is a tar archive to preserve executable
 permissions and symlinks; extract it before installing on a simulator compatible
 with the build's architecture. It is not an iPhone or App Store distribution.
 Web artifacts must be served over HTTP. These workflows do not publish releases,
 deploy a website, or require signing credentials.
+The Mac artifact also uses a tar archive to preserve permissions and symlinks.
+It is an ad-hoc-signed build for development, not a Mac App Store submission or
+a notarized direct-download release. Gatekeeper may block downloaded CI builds.
 
 Dependabot opens weekly Monday pull requests for Dart packages and GitHub
 Actions. Dart minor/patch updates are grouped; major updates stay
@@ -236,6 +303,13 @@ explicit restoration, completion failures, disposal during loading, and free
 gameplay while the store is still loading.
 All use isolated in-memory preferences and test purchase providers,
 so they do not alter your simulator's progress or contact the store.
+Mac regressions cover keyboard focus and movement, selection/cancellation,
+modifier keys, input locks, mouse dragging, resizing, native Settings routing,
+and the existing purchase/restore flow on macOS. Xcode Cloud script tests cover
+both Apple targets and preparation failures. The Mac Runner scheme also includes
+native tests for app metadata, the minimum window size, and Settings menu wiring.
+The macOS CI job runs these native tests against the release app before
+uploading its artifact.
 
 Run just the game-state and UI regressions during gameplay changes:
 
@@ -259,9 +333,11 @@ should not be forced forward using dependency overrides.
 ## App icon
 
 The launcher icon is a warm-white ladder on a purple gradient, with no letters.
-`assets/app_icon.svg` is the full-bleed source for the iOS catalog, Android legacy
+`assets/app_icon.svg` is the source for the iOS and macOS catalogs, Android legacy
 launcher sizes, web icons and favicon, and the Google Play listing icon.
-Rounded corners are applied by the platform, not baked into the image.
+iOS artwork is full-bleed with platform-applied corners. Mac icons use an
+inset rounded square on a transparent canvas because macOS does not apply
+the iOS icon mask.
 In-game logos and the Google Play feature graphic are separate and unchanged.
 Startup uses the same artwork in a compact rounded badge on the warm neutral
 background, with the game title, "Rearrange. Solve. Climb." tagline, and an
@@ -278,7 +354,8 @@ npm run generate --prefix tools/icons
 ```
 
 The generator checks dimensions and opacity, including the 1024px App Store
-icon. It also generates `assets/app_icon.png` for Flutter and the rounded native
+icon, and verifies the Mac icon sizes, transparent corners, and opaque centers.
+It also generates `assets/app_icon.png` for Flutter and the rounded native
 launch badges, whose transparent corners are checked separately.
 Android 8 and later use the matching adaptive vector layers in
 `android/app/src/main/res/drawable/ic_launcher_*.xml`; Android 13 and later also
