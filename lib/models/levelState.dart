@@ -66,7 +66,17 @@ class LevelState {
           row.isEmpty ||
           row.any(
             (letter) =>
-                letter is! String || !RegExp(r'^[a-z]?$').hasMatch(letter),
+                letter is! String ||
+                !RegExp(
+                  world == 6 &&
+                          level == 98 &&
+                          rungCount == 3 &&
+                          rows.length == 3 &&
+                          letters.length == 2 &&
+                          row.length == 6
+                      ? r'^[a-z\uFFFD]?$'
+                      : r'^[a-z]?$',
+                ).hasMatch(letter),
           )) {
         throw const FormatException('Invalid daily ladder letters');
       }
@@ -79,7 +89,7 @@ class LevelState {
       currentRung,
       rungCount,
       letters,
-    );
+    )..repairNormal98();
   }
 
   LevelState.fromSharedPreferences(
@@ -109,6 +119,24 @@ class LevelState {
     this.levelLetters = lettersRaw
         .map((x) => (x as List<dynamic>).cast<String>())
         .toList();
+    repairNormal98();
+  }
+
+  bool repairNormal98() {
+    if (world != 6 ||
+        level != 98 ||
+        rungCount != 3 ||
+        levelLetters.length != 3 ||
+        levelLetters.last.length != 6 ||
+        !levelLetters.last.contains('\uFFFD')) {
+      return false;
+    }
+    levelLetters[2] = isWon
+        ? 'script'.split('')
+        : levelLetters.last
+              .map((letter) => letter == '\uFFFD' ? 't' : letter)
+              .toList();
+    return true;
   }
 
   Future save(SharedPreferences prefs) async {

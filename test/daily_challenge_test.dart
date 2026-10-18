@@ -115,6 +115,54 @@ void main() {
     );
   });
 
+  test(
+    'Normal 98 migration does not parse unrelated daily saves at startup',
+    () async {
+      final preferences = await SharedPreferences.getInstance();
+      final key = 'daily_v3_progress_${game.today.dateKey}';
+      expect((game.today.world, game.today.level), isNot((6, 98)));
+      await preferences.setString(key, 'invalid-json');
+      await game.initialize(force: true);
+      expect(preferences.getString(key), 'invalid-json');
+      expect(() => game.getDailyState(game.today), throwsFormatException);
+    },
+  );
+
+  test(
+    'Normal 98 daily repair persists without changing dated selection',
+    () async {
+      final day = [
+        for (var offset = 0; offset < DailyChallenge.puzzleCount; offset++)
+          DailyChallenge(DateTime(2026, 1, 1 + offset)),
+      ].firstWhere((day) => day.world == 6 && day.level == 98);
+      final preferences = await SharedPreferences.getInstance();
+      for (final currentRung in [2, 3]) {
+        final old = LevelState(6, 98, 6, currentRung, 3, [
+          'rips'.split(''),
+          'crisp'.split(''),
+          'pr\uFFFDcis'.split(''),
+        ]);
+        final key = 'daily_v3_progress_${day.dateKey}';
+        await preferences.setString(key, jsonEncode(old.toJson()));
+        await preferences.setBool(
+          'daily_v3_completed_${day.dateKey}',
+          currentRung == 3,
+        );
+        await game.initialize(force: true);
+        final repaired = game.getDailyState(day);
+        expect(repaired.currentRung, currentRung);
+        expect(
+          repaired.levelLetters.last.join(),
+          currentRung == 3 ? 'script' : 'prtcis',
+        );
+        expect(game.isDailyCompleted(day), currentRung == 3);
+        expect(preferences.getString(key), isNot(contains('\uFFFD')));
+        expect((await game.getDailyLadder(day)).words, ['script']);
+        expect(game.getLevelState(6, 98).isEmpty, isTrue);
+      }
+    },
+  );
+
   test('started v2 dailies keep their original puzzle and progress', () async {
     final old = DailyChallenge.previous(now);
     final progress = await completedLevel(game, old.world, old.level);

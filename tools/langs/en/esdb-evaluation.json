@@ -1,0 +1,130 @@
+{
+  "source": "ESDB 1e5b7d3a72f47a71da5d28686c1dd4b397178485",
+  "adoptedUpstreamRefresh": false,
+  "previousVocabularyCounts": {
+    "words": 83977,
+    "required": 34400,
+    "seeds": 26424
+  },
+  "catalogSnapshotHash": "fc8278a858f7e804f3416bb5ab3e27bec58a44404063924c25ab541c2da48b83",
+  "counts": {
+    "words": 93722,
+    "required": 34046,
+    "seeds": 26141
+  },
+  "changes": {
+    "words": {
+      "added": 11304,
+      "removed": 1559
+    },
+    "requiredWords": {
+      "added": 143,
+      "removed": 497
+    },
+    "seeds": {
+      "added": 115,
+      "removed": 398
+    }
+  },
+  "exclusionCounts": {
+    "esdb-non-playable": 83145,
+    "outside-4-to-10-letters": 842,
+    "non-ascii-or-punctuation": 104,
+    "blacklisted": 26
+  },
+  "conflictingRungs": 152,
+  "conflictingPuzzles": 143,
+  "protectedConflictingPuzzles": 36,
+  "missingAcceptedAnswers": 55,
+  "hintPolicy": "Retain bundled SCOWL 10/20/35 hint ranks. ESDB has no equivalent 10/20 tiers.",
+  "conflictExamples": [
+    {
+      "world": 6,
+      "level": 3,
+      "letters": "aderrt",
+      "missingAnswers": [
+        "retrad"
+      ],
+      "missingFamiliarAnswer": false
+    },
+    {
+      "world": 6,
+      "level": 8,
+      "letters": "adehs",
+      "missingAnswers": [
+        "ashed"
+      ],
+      "missingFamiliarAnswer": false
+    },
+    {
+      "world": 6,
+      "level": 9,
+      "letters": "aeps",
+      "missingAnswers": [
+        "spae"
+      ],
+      "missingFamiliarAnswer": false
+    },
+    {
+      "world": 6,
+      "level": 10,
+      "letters": "hostu",
+      "missingAnswers": [
+        "thous"
+      ],
+      "missingFamiliarAnswer": false
+    },
+    {
+      "world": 6,
+      "level": 14,
+      "letters": "cdeo",
+      "missingAnswers": [
+        "deco"
+      ],
+      "missingFamiliarAnswer": false
+    },
+    {
+      "world": 6,
+      "level": 20,
+      "letters": "chipsy",
+      "missingAnswers": [],
+      "missingFamiliarAnswer": true
+    },
+    {
+      "world": 6,
+      "level": 27,
+      "letters": "ackl",
+      "missingAnswers": [
+        "kcal"
+      ],
+      "missingFamiliarAnswer": false
+    },
+    {
+      "world": 6,
+      "level": 52,
+      "letters": "ehlls",
+      "missingAnswers": [
+        "hells"
+      ],
+      "missingFamiliarAnswer": false
+    },
+    {
+      "world": 6,
+      "level": 58,
+      "letters": "ackl",
+      "missingAnswers": [
+        "kcal"
+      ],
+      "missingFamiliarAnswer": false
+    },
+    {
+      "world": 6,
+      "level": 59,
+      "letters": "cdeo",
+      "missingAnswers": [
+        "deco"
+      ],
+      "missingFamiliarAnswer": false
+    }
+  ]
+}

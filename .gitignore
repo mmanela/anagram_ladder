@@ -31,6 +31,8 @@
 .pub/
 /build/
 /coverage/
+/tools/langs/en/processed.publish-backup/
+/tools/langs/en/.ladder-publish-*/
 
 # Web related
 /tools/icons/node_modules/
