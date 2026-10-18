@@ -67,6 +67,38 @@ void main() {
   });
 
   test(
+    'Normal 98 repair preserves lower rungs, progress and completion',
+    () async {
+      final preferences = await SharedPreferences.getInstance();
+      for (final currentRung in [0, 1, 2, 3]) {
+        await LevelState(6, 98, 6, currentRung, 3, [
+          'rips'.split(''),
+          'crisp'.split(''),
+          'pr\uFFFDcis'.split(''),
+        ]).save(preferences);
+        await state.initialize(force: true);
+        final repaired = state.getLevelState(6, 98);
+        expect(repaired.currentRung, currentRung);
+        expect(repaired.isWon, currentRung == 3);
+        expect(repaired.levelLetters.take(2), [
+          'rips'.split(''),
+          'crisp'.split(''),
+        ]);
+        expect(
+          repaired.levelLetters.last.join(),
+          currentRung == 3 ? 'script' : 'prtcis',
+        );
+        expect(
+          preferences.getString('v5_6_98_levelLetters'),
+          isNot(contains('\uFFFD')),
+        );
+        await state.initialize(force: true);
+        expect(state.getLevelState(6, 98).toJson(), repaired.toJson());
+      }
+    },
+  );
+
+  test(
     'disposing during game loading does not notify disposed listeners',
     () async {
       final temporary = GameState(store);

@@ -363,6 +363,10 @@ Daunting, Expert, and Genius start at five letters or longer. Cache entries
 include that minimum length so results from one difficulty cannot shorten another.
 Regression tests independently check the longest possible path for all 1,250
 bundled seeds. Existing three-or-more-rung puzzle layouts are not regenerated.
+Normal 98 is a targeted exception: its corrupted final word was replaced with
+`script`, retaining the `rips` and `crisp`/`scrip` rungs. Existing regular and daily
+saves retain lower-rung progress and completion; the corrupted tile becomes `t`.
+Puzzle-data tests reject non-ASCII letters and malformed answers in every puzzle.
 To repair only short
 ladders without regenerating or reordering the remaining puzzles:
 

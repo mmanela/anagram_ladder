@@ -253,6 +253,7 @@ class GameState with ChangeNotifier, WidgetsBindingObserver {
       if (_sharedPreferences == null) {
         _sharedPreferences = await SharedPreferences.getInstance();
       }
+      await _migrateNormal98Progress();
       for (var worldId in worldIds) {
         await getWorldOrLoad(worldId, force: force);
         if (_ladders[worldId]!.asMap().keys.any(
@@ -298,6 +299,39 @@ class GameState with ChangeNotifier, WidgetsBindingObserver {
         'Ladder: upgraded short puzzle $world/${index + 1}; '
         '${saved.isWon ? 'completion preserved' : 'in-progress ladder restarted'}',
       );
+    }
+  }
+
+  Future<void> _migrateNormal98Progress() async {
+    final preferences = _sharedPreferences!;
+    final regular = getLevelState(6, 98);
+    if (!regular.isEmpty) {
+      final key = regular.getPrefKey(6, 98, 'levelLetters');
+      final raw = preferences.getString(key)!;
+      final encoded = jsonEncode(regular.levelLetters);
+      if (encoded != jsonEncode(jsonDecode(raw))) {
+        if (!await preferences.setString(key, encoded)) {
+          throw StateError('Could not save repaired Normal 98 progress');
+        }
+        debugPrint('Ladder: repaired Normal 98 progress');
+      }
+    }
+    for (final key in preferences.getKeys().where(
+      (key) => key.startsWith('daily_v3_progress_'),
+    )) {
+      final raw = jsonDecode(preferences.getString(key)!);
+      if (raw is! Map<String, dynamic> ||
+          raw['world'] != 6 ||
+          raw['level'] != 98) {
+        continue;
+      }
+      final repaired = LevelState.fromJson(raw);
+      final encoded = jsonEncode(repaired.toJson());
+      if (encoded == jsonEncode(raw)) continue;
+      if (!await preferences.setString(key, encoded)) {
+        throw StateError('Could not save repaired Normal 98 daily progress');
+      }
+      debugPrint('Ladder: repaired Normal 98 daily progress');
     }
   }
 

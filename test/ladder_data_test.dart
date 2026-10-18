@@ -34,7 +34,22 @@ void main() {
         final rungs = ladder.getBottomUp();
         expect(rungs.length, greaterThanOrEqualTo(3), reason: reason);
         for (final rung in rungs) {
+          expect(
+            rung.letters,
+            everyElement(matches(r'^[a-z]$')),
+            reason: reason,
+          );
+          expect(
+            rung.lettersToAdd,
+            everyElement(matches(r'^[a-z]$')),
+            reason: reason,
+          );
           expect(rung.words, isNotEmpty, reason: reason);
+          expect(
+            rung.words.toSet(),
+            hasLength(rung.words.length),
+            reason: reason,
+          );
           expect(
             rung.words.any(requiredWords.contains),
             isTrue,
@@ -42,6 +57,7 @@ void main() {
           );
           expect(rung.levelWordCount, rung.words.length, reason: reason);
           for (final word in rung.words) {
+            expect(word, matches(r'^[a-z]+$'), reason: reason);
             expect(allowedWords, contains(word), reason: reason);
             expect(
               sortedLetters(word.split('')),
@@ -50,6 +66,15 @@ void main() {
             );
           }
           final child = rung.childLevel;
+          expect(rung.rung, child == null ? 0 : child.rung + 1, reason: reason);
+          expect(
+            rung.totalWordCount,
+            rung.words.length + (child?.totalWordCount ?? 0),
+            reason: reason,
+          );
+          if (child == null) {
+            expect(rung.lettersToAdd, isEmpty, reason: reason);
+          }
           if (child != null) {
             expect(
               rung.letterCount,
