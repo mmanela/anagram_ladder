@@ -1,0 +1,83 @@
+{
+  "schema": 1,
+  "legacy": {
+    "repositorySnapshot": "9ece3a6",
+    "scowl": {
+      "url": "https://wordlist.aspell.net/",
+      "release": "Unknown in original import; local bytes are pinned, not claimed to match a particular upstream release.",
+      "license": "MIT-like with component notices; see raw/Scowl/Copyright",
+      "licenseReference": "https://github.com/en-wl/wordlist/blob/b22230cc5250887737fdefe9ca4c9d9d01230eaa/scowl/Copyright",
+      "requiredAndSeeds": [
+        "american-words.10",
+        "english-words.10",
+        "american-words.20",
+        "english-words.20",
+        "american-words.35",
+        "english-words.35"
+      ],
+      "additionalAccepted": [
+        "american-words.40",
+        "english-words.40",
+        "american-words.50",
+        "english-words.50",
+        "american-words.55",
+        "english-words.55",
+        "american-words.60",
+        "english-words.60",
+        "american-words.70",
+        "english-words.70"
+      ]
+    },
+    "nouns": {
+      "url": "https://www.desiquintans.com/nounlist",
+      "license": "Public domain, as stated on the source page",
+      "release": "Original imported bytes; upstream page describes 6,775 nouns, last modified 2019-02-10."
+    },
+    "localOverrides": [
+      "raw/extra_words.txt",
+      "raw/blacklist.txt"
+    ],
+    "normalization": "Trim and lowercase; reject non-ASCII, punctuation, replacement characters and lengths outside 4-10. No guessed transliteration.",
+    "seedPolicy": "Unique sorted multisets from familiar SCOWL words of length 6-10. Nested multisets are allowed.",
+    "hintPolicy": "Retain bundled 10/20/35 SCOWL ranks. New vocabulary alone does not change hint selection."
+  },
+  "esdbEvaluation": {
+    "revision": "1e5b7d3a72f47a71da5d28686c1dd4b397178485",
+    "url": "https://github.com/en-wl/wordlist",
+    "archiveUrl": "https://codeload.github.com/en-wl/wordlist/tar.gz/1e5b7d3a72f47a71da5d28686c1dd4b397178485",
+    "archiveSha256": "aaecc7a54af576057e30b22a19b78bad011f2181f7e368ff3b736fbecbdfd4d0",
+    "license": "MIT-like; retain upstream Copyright before distributing derived vocabulary",
+    "licenseUrl": "https://github.com/en-wl/wordlist/blob/1e5b7d3a72f47a71da5d28686c1dd4b397178485/Copyright",
+    "requiredCommand": "./scowl word-list 35 A 1 --deaccent --wo-poses=abbr --categories=",
+    "allowedCommand": "./scowl word-list 70 A 1 --deaccent --wo-poses=abbr --categories=",
+    "exportPostprocessing": "LC_ALL=C sort -u; UTF-8, LF-terminated. Application preprocessing rejects non-lowercase-ASCII and out-of-range words.",
+    "requiredSha256": "ce4c6d0c7249b8792e815180ce0b000f821f2067e5e8991dec3645c7f42e141a",
+    "allowedSha256": "249e3d26db2e8f7fccb8b9765c0effd9b9d875cacbe486adabbef8120ea3db8b",
+    "adopted": false,
+    "hintCaveat": "ESDB minimum size is 35, so it cannot replace the existing 10/20/35 hint ranking unchanged."
+  },
+  "files": {
+    "tools/langs/en/raw/GreatNounList/noun_list.txt": "86a09ae3cfca5881659ce8b965477e9dca87e0342be96384d8bc6b6543a54b96",
+    "tools/langs/en/raw/GreatNounList/readme.md": "19ff13e2f8398c6084a04f14bb3cc88414893789222f2e1af9597872c16bb28b",
+    "tools/langs/en/raw/Scowl/Copyright": "283326a422e29c510e2ba6805518c418ce3c35ed1fadc3eec83d2da4f6c5a055",
+    "tools/langs/en/raw/Scowl/american-words.10": "6ed66394d8b46ed12feac7aad989dfc4620c4f2051316ab774560aae71140994",
+    "tools/langs/en/raw/Scowl/american-words.20": "a7ae730cd5f2ee11b584c163bf0750cc7659e336c3a04da1a8a2e9c44b604b9e",
+    "tools/langs/en/raw/Scowl/american-words.35": "c999d002cfe31a2c3d9726eee1b87697402bb71cc831a2c63d064403c6a3a7fb",
+    "tools/langs/en/raw/Scowl/american-words.40": "6b0cdf46ba32d77ad8194a9f350ab467b21d481557d55f21a7043c80ea868416",
+    "tools/langs/en/raw/Scowl/american-words.50": "1846537a15d7cf9f0b5fde8d2f69a9d3606856695c68de1701fc85d698646994",
+    "tools/langs/en/raw/Scowl/american-words.55": "d5b6d504b907ef159b164286519fc96168737d60a62310ff5d74d2076ed97027",
+    "tools/langs/en/raw/Scowl/american-words.60": "3296121b977bcc2fc3fab374b69d2a0891c825bb473ef8078161245b2a990f2f",
+    "tools/langs/en/raw/Scowl/american-words.70": "96b09f0f5db4203fa41fca64d6c40833da0ccdc1c02f913628c7ed129a68f6c3",
+    "tools/langs/en/raw/Scowl/english-words.10": "b4cb7c969b160e5f2a6644dd645265f2eeb29725fa63b0688311e3b5473fcb47",
+    "tools/langs/en/raw/Scowl/english-words.20": "7d7412cc2216668e7f81fbde1aaf8d01ef460b44248c4dbf3e99b053a27835a2",
+    "tools/langs/en/raw/Scowl/english-words.35": "959c66dd39643726f06718673822339b0c1fd0e6a20bb4d0b7a62d30350f5032",
+    "tools/langs/en/raw/Scowl/english-words.40": "4e0ef02c8755d47ce89cfd67e199b26a6cbe7d61d79af422535fa4392dd9b55e",
+    "tools/langs/en/raw/Scowl/english-words.50": "11ffb2bac7d72ad2d11ed3ab01d2af9463a34c93e0000728be96523eb2d53ea8",
+    "tools/langs/en/raw/Scowl/english-words.55": "573bf050fb0cdddd20367e41a1a490739bc4cd2164517b57067389e311fdcc32",
+    "tools/langs/en/raw/Scowl/english-words.60": "3886f71530d0dfa6ba891659cc1e49dbecc84a54a9e4701729bee7ca35169b9d",
+    "tools/langs/en/raw/Scowl/english-words.70": "e924e913117675bc135a0d26848376ed7b9599c64c734779e3b2ae06a94f5993",
+    "tools/langs/en/raw/Scowl/readme.md": "0256fbf6032fcda6a9408a903f60218643b6a903cde1f4aca4ddacbf5bfdd388",
+    "tools/langs/en/raw/blacklist.txt": "80763c9c7454077d79aa6ae1501e5b908c920c7aaeab828249f7c3f4a4acf4d6",
+    "tools/langs/en/raw/extra_words.txt": "a4349d54dbd343de2dd18dc43149374f0b7d5c0efb293b84461444e595742898"
+  }
+}

@@ -116,6 +116,19 @@ void main() {
   });
 
   test(
+    'Normal 98 migration does not parse unrelated daily saves at startup',
+    () async {
+      final preferences = await SharedPreferences.getInstance();
+      final key = 'daily_v3_progress_${game.today.dateKey}';
+      expect((game.today.world, game.today.level), isNot((6, 98)));
+      await preferences.setString(key, 'invalid-json');
+      await game.initialize(force: true);
+      expect(preferences.getString(key), 'invalid-json');
+      expect(() => game.getDailyState(game.today), throwsFormatException);
+    },
+  );
+
+  test(
     'Normal 98 daily repair persists without changing dated selection',
     () async {
       final day = [

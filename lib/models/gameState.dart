@@ -319,11 +319,17 @@ class GameState with ChangeNotifier, WidgetsBindingObserver {
     for (final key in preferences.getKeys().where(
       (key) => key.startsWith('daily_v3_progress_'),
     )) {
+      final day = DailyChallenge.tryParse(
+        key.substring('daily_v3_progress_'.length),
+      );
+      if (day == null || day.world != 6 || day.level != 98) continue;
       final raw = jsonDecode(preferences.getString(key)!);
       if (raw is! Map<String, dynamic> ||
           raw['world'] != 6 ||
           raw['level'] != 98) {
-        continue;
+        throw const FormatException(
+          'Normal 98 daily save does not match its puzzle',
+        );
       }
       final repaired = LevelState.fromJson(raw);
       final encoded = jsonEncode(repaired.toJson());

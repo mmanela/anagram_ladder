@@ -16,17 +16,20 @@ class LadderLevel implements Comparable<LadderLevel> {
   double get wordsPerLadder => totalWordCount / (rung + 1.0);
 
   LadderLevel(
-      this.letters, this.levelWordCount, LadderLevel childLevel, this.words)
-      : totalWordCount = childLevel.totalWordCount + levelWordCount,
-        rung = childLevel.rung + 1,
-        this.childLevel = childLevel {
+    this.letters,
+    this.levelWordCount,
+    LadderLevel childLevel,
+    this.words,
+  ) : totalWordCount = childLevel.totalWordCount + levelWordCount,
+      rung = childLevel.rung + 1,
+      this.childLevel = childLevel {
     lettersToAdd = _intersect(childLevel.letters, this.letters);
   }
 
   LadderLevel.bottom(this.letters, this.levelWordCount, this.words)
-      : totalWordCount = levelWordCount,
-        rung = 0,
-        childLevel = null;
+    : totalWordCount = levelWordCount,
+      rung = 0,
+      childLevel = null;
 
   // Assume they are sorted
   List<String> _intersect(List<String> from, List<String> to) {
@@ -38,15 +41,15 @@ class LadderLevel implements Comparable<LadderLevel> {
   }
 
   LadderLevel.fromJson(Map<String, dynamic> json)
-      : letters = json['letters'].cast<String>(),
-        lettersToAdd = json['lettersToAdd'].cast<String>(),
-        rung = json['rung'],
-        levelWordCount = json['levelWordCount'],
-        totalWordCount = json['totalWordCount'],
-        words = json['words'].cast<String>(),
-        childLevel = json['childLevel'] != null
-            ? LadderLevel.fromJson(json['childLevel'])
-            : null;
+    : letters = json['letters'].cast<String>(),
+      lettersToAdd = json['lettersToAdd'].cast<String>(),
+      rung = json['rung'],
+      levelWordCount = json['levelWordCount'],
+      totalWordCount = json['totalWordCount'],
+      words = json['words'].cast<String>(),
+      childLevel = json['childLevel'] != null
+          ? LadderLevel.fromJson(json['childLevel'])
+          : null;
 
   Map<String, dynamic> toJson() {
     return {
@@ -56,7 +59,7 @@ class LadderLevel implements Comparable<LadderLevel> {
       'levelWordCount': levelWordCount,
       'totalWordCount': totalWordCount,
       'words': words,
-      'childLevel': childLevel?.toJson()
+      'childLevel': childLevel?.toJson(),
     };
   }
 
@@ -110,6 +113,6 @@ class LadderLevel implements Comparable<LadderLevel> {
     if (levelWordCount != other.levelWordCount) {
       return other.levelWordCount - levelWordCount;
     }
-    return other.levelWordCount - levelWordCount;
+    return letters.join().compareTo(other.letters.join());
   }
 }

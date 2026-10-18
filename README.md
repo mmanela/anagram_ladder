@@ -358,21 +358,139 @@ should not be forced forward using dependency overrides.
 
 Ladder generation prioritizes longer paths before word variety and requires
 at least three rungs and 250 puzzles per difficulty. Length is maximized within
-the existing vocabulary rules: Normal and Hard start at four letters or longer;
-Daunting, Expert, and Genius start at five letters or longer. Cache entries
-include that minimum length so results from one difficulty cannot shorten another.
+the generation vocabulary rules: Normal and Hard start at four letters or longer;
+new Daunting, Expert, and Genius puzzles start at five letters or longer.
+Published puzzles with shorter starting words are retained.
+The generator caches deterministic path scores, including the minimum word length,
+then selects a path using per-request seeded randomness. Repeated letters do not
+weight equivalent branches, and tied catalog scores use a stable letter-set order.
 Regression tests independently check the longest possible path for all 1,250
-bundled seeds. Existing three-or-more-rung puzzle layouts are not regenerated.
+bundled seeds, dictionary-order independence, call-order independence, and
+repeatability across builder instances.
+
 Normal 98 is a targeted exception: its corrupted final word was replaced with
 `script`, retaining the `rips` and `crisp`/`scrip` rungs. Existing regular and daily
 saves retain lower-rung progress and completion; the corrupted tile becomes `t`.
 Puzzle-data tests reject non-ASCII letters and malformed answers in every puzzle.
-To repair only short
-ladders without regenerating or reordering the remaining puzzles:
+### Published catalog compatibility
+
+`tools/langs/en/catalog.lock.json` records SHA-256 fingerprints of all 1,250
+published puzzles after the Normal 98 repair. It locks order, letters, rungs,
+letter additions, accepted answers, and metadata independently of generation.
+**Levels 1-50 in every difficulty are immutable.** Do not regenerate the lock to
+make a failing check pass.
+
+Other published puzzles also remain unchanged by default because regular saves
+and dated daily puzzles reference their existing positions. A targeted repair
+above level 50 requires a reviewed entry in `catalog-exceptions.json`, containing
+`world`, `level`, exact `before` and `after` fingerprints from the candidate report,
+and nonempty `reason` and `migration` notes. An approval cannot authorize changes
+to levels 1-50, duplicate an existing exception, or match a different candidate.
+Implement and test the actual regular/daily save migration before approving a
+layout change; the notes do not perform a migration.
+
+### Vocabulary sources and processing
+
+The imported [SCOWL](https://wordlist.aspell.net/) lists supply familiar words and
+seed candidates at tiers 10/20/35, with tiers 40-70 expanding accepted answers.
+[Desi Quintans' public-domain noun list](https://www.desiquintans.com/nounlist),
+`extra_words.txt`, and `blacklist.txt` supplement them.
+`sources.lock.json` records source URLs, roles, licenses, normalization, and
+checksums of every local input. The original SCOWL release was not recorded, so
+the manifest pins the actual imported bytes rather than inventing a version.
+Its component license notices are retained in `raw/Scowl/Copyright`.
+
+Processing uses strict UTF-8 decoding, trims and lowercases entries, and excludes
+replacement characters, punctuation, non-ASCII letters, and lengths outside 4-10.
+Every excluded or normalized input is recorded in `report.json`, along with
+source checksums, duplicates, vocabulary differences, and published-answer
+conflicts. Seeds are unique sorted letter multisets from familiar SCOWL words,
+not disjoint subsets. This replaces the old prefix-based filter, which did not
+enforce its claimed subset exclusion. No accented spelling is guessed from a
+corrupted replacement character.
+
+The cleaned legacy vocabulary preserves every published answer. Hint selection
+continues using the original bundled SCOWL 10/20/35 tier files, so the cleanup
+does not change existing hint ranks.
+
+### Safe tooling workflow
+
+Run from the repository root. Every generation command requires a **new output
+directory** and never writes published files. Candidate dictionaries use
+canonical sorted ordering; publication retains the order of surviving dictionary
+entries to avoid unnecessary diffs. Unknown commands, malformed options, invalid
+inputs, source checksum mismatches, and write failures exit nonzero.
+
+For a vocabulary-only cleanup, which retains every published ladder:
 
 ```sh
-dart run tools/main.dart repair_ladders
+dart run tools/main.dart verify_sources
+dart run tools/main.dart process_raw --output .dart_tool/ladder_candidates/local-1
+dart run tools/main.dart validate --candidate .dart_tool/ladder_candidates/local-1
+# Review report.json and evaluation-summary.json before explicitly publishing.
+dart run tools/main.dart publish --candidate .dart_tool/ladder_candidates/local-1
 ```
+
+To experiment with regeneration or prepare only short-ladder repairs:
+
+```sh
+dart run tools/main.dart build_ladders --vocabulary .dart_tool/ladder_candidates/local-1 --output .dart_tool/ladder_candidates/generated-1
+dart run tools/main.dart repair_ladders --vocabulary .dart_tool/ladder_candidates/local-1 --output .dart_tool/ladder_candidates/repair-1
+```
+
+Review each candidate's `report.json` for changed puzzle positions, before/after
+layouts and answers, rung counts, fingerprints, and compatibility violations.
+A full regenerated catalog is an experiment, not a publishable replacement:
+publication refuses any changed protected level and any unapproved paid change.
+Repairing a short protected level is also refused.
+
+Publication validates all dictionaries and puzzles before staging a replacement
+directory on the same filesystem. It preserves auxiliary processed files and
+restores the previous directory if installation fails. Run publication offline,
+not concurrently with another publisher or asset build. If the process is
+terminated between directory renames, `processed.publish-backup` retains the
+old directory and blocks further publication. Inspect both directories, restore
+the backup if installation did not complete, then validate before retrying.
+Do not delete a recovery copy without confirming which catalog is installed.
+
+```sh
+dart run tools/main.dart validate
+flutter test test/ladder_data_test.dart test/ladder_builder_test.dart test/ladder_pipeline_test.dart
+```
+
+### Pinned ESDB evaluation
+
+SCOWL has evolved into the English Speller Database (ESDB), whose minimum tier
+is now 35 and whose schema and CLI are still evolving. The manifest pins revision
+`1e5b7d3a72f47a71da5d28686c1dd4b397178485`, the source archive checksum, and exact
+export commands and output checksums. The noun list is retained.
+`tools/langs/en/esdb-evaluation.json` records the measured comparison.
+
+The evaluated American English tier-35/tier-70 exports conflict with 143 existing
+puzzles, including 36 protected puzzles, and omit 55 distinct accepted answers.
+**The ESDB refresh is not adopted.** It is unsuitable as a drop-in replacement for
+published puzzles or the existing 10/20/35 hint ranking. Using it for future content
+needs a separate content/versioning decision; existing definitions remain frozen.
+
+To reproduce the evaluation, download and verify the archive from the manifest,
+extract it under `.dart_tool/ladder_sources`, run `make` in the extracted root,
+then run the manifest's export commands there:
+
+```sh
+./scowl word-list 35 A 1 --deaccent --wo-poses=abbr --categories= > ../required-unsorted.txt
+./scowl word-list 70 A 1 --deaccent --wo-poses=abbr --categories= > ../allowed-unsorted.txt
+LC_ALL=C sort -u ../required-unsorted.txt > ../esdb-required.txt
+LC_ALL=C sort -u ../allowed-unsorted.txt > ../esdb-allowed.txt
+```
+
+Back in this repository root:
+
+```sh
+dart run tools/main.dart evaluate_esdb --required .dart_tool/ladder_sources/esdb-required.txt --allowed .dart_tool/ladder_sources/esdb-allowed.txt --output .dart_tool/ladder_candidates/esdb-1
+```
+
+The evaluation checks the export hashes, stages its own dictionaries and reports
+every published vocabulary conflict without altering the app.
 
 ## App icon
 
