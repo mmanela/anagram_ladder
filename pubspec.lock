@@ -77,10 +77,10 @@ packages:
     dependency: "direct dev"
     description:
       name: crypto
-      sha256: c8ea0233063ba03258fbcf2ca4d6dadfefe14f02fab57702265467a19f27fadf
+      sha256: e3626ae6270383c9e3a549f34c9e4cd26c09ae6a9adaab2bf4737a00340efdc4
       url: "https://pub.dev"
     source: hosted
-    version: "3.0.7"
+    version: "3.0.8"
   cupertino_icons:
     dependency: "direct main"
     description:
@@ -188,10 +188,10 @@ packages:
     dependency: transitive
     description:
       name: in_app_purchase_android
-      sha256: eac857f7408769a68194be99ceb233ad4e3599e55ccd6422afaf0c7fd5066738
+      sha256: b76ab601573f8a848e72d015496257235066ba3479bef6300482239f417e0d72
       url: "https://pub.dev"
     source: hosted
-    version: "0.5.4"
+    version: "0.5.5"
   in_app_purchase_platform_interface:
     dependency: "direct dev"
     description:
@@ -204,10 +204,10 @@ packages:
     dependency: transitive
     description:
       name: in_app_purchase_storekit
-      sha256: "46a77b5bf1f343f9a66876c14f5c5c3442ea14a3da6be42d29d1435dcdf2e3cd"
+      sha256: de4f86b7bed848cd60a32c93affad868ba06a5276c007e23878855558094ff43
       url: "https://pub.dev"
     source: hosted
-    version: "0.4.13+2"
+    version: "0.4.15"
   jni:
     dependency: transitive
     description:
@@ -316,10 +316,10 @@ packages:
     dependency: "direct main"
     description:
       name: more
-      sha256: e252628d2183cc09539b686abfbd9d8302675959b89a2a8146f5f4baca6ac5ba
+      sha256: "59f5986cf2add0912842a5d705b1a2a91aab6e945b09fba8f38f87cff1b813d0"
       url: "https://pub.dev"
     source: hosted
-    version: "4.7.0"
+    version: "4.8.2"
   nested:
     dependency: transitive
     description:
@@ -492,18 +492,18 @@ packages:
     dependency: transitive
     description:
       name: shared_preferences_android
-      sha256: "1e12aafe408aa50da80edfd679a2a6bf63ba7ab37c7fa98286da459a757b3399"
+      sha256: "593034a16e82953ca31145db6c85174286262715f9c5e6a9d8c65ffd9fcdce09"
       url: "https://pub.dev"
     source: hosted
-    version: "2.4.28"
+    version: "2.5.3"
   shared_preferences_foundation:
     dependency: transitive
     description:
       name: shared_preferences_foundation
-      sha256: "2ec3934efa51e46117f23031cc141b8fc878e8525b94ec1ea4f7f586cf1b47ea"
+      sha256: c2c02dd59bd7b3bb6bfb77aa7ad4a7886b24ee40e95dcaea754b83274b567ff5
       url: "https://pub.dev"
     source: hosted
-    version: "2.5.7"
+    version: "2.6.0"
   shared_preferences_linux:
     dependency: transitive
     description:
@@ -689,18 +689,18 @@ packages:
     dependency: transitive
     description:
       name: vm_service
-      sha256: "5f37239c4851efcef929cea7824e76df7f2f0970aef85d66bbc430afa40e72f0"
+      sha256: "89b11d62e1040ee681af3b4f1c97a803ecbf010c6e8b9c5896ee5b08c3bf7b78"
       url: "https://pub.dev"
     source: hosted
-    version: "15.3.0"
+    version: "15.4.0"
   web:
     dependency: transitive
     description:
       name: web
-      sha256: "868d88a33d8a87b18ffc05f9f030ba328ffefba92d6c127917a2ba740f9cfe4a"
+      sha256: e119e82ac4795c7925103b7cf3768191f33941b99e7ccffbd6c645201d9f606b
       url: "https://pub.dev"
     source: hosted
-    version: "1.1.1"
+    version: "1.1.2"
   win32:
     dependency: transitive
     description:
