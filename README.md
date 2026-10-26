@@ -508,7 +508,7 @@ startup has no artificial delay. The layout scrolls on short screens and with
 large text. Native iOS and Android launch screens use matching artwork and
 backgrounds, including the Android 12 system splash screen.
 
-Regenerate the PNGs with Node.js 20 or later:
+Regenerate the PNGs with Node.js 20.9.0 or later:
 
 ```sh
 npm ci --prefix tools/icons
