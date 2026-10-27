@@ -160,7 +160,10 @@ Future<void> run(List<String> arguments) async {
         ...catalogFiles(catalog),
         'report.json': encoder.convert({
           ...await compareCatalogs(catalog, previous),
-          'compatibilityChanges': await compatibilityChanges(catalog),
+          'compatibilityChanges': await compatibilityChanges(
+            catalog,
+            requireMatchingApprovals: false,
+          ),
           'vocabularyHashes': {
             for (final entry in vocabulary.files.entries)
               entry.key: sha256.convert(utf8.encode(entry.value)).toString(),
@@ -192,7 +195,7 @@ Future<void> run(List<String> arguments) async {
       await verifySources();
       await publishCandidate(required('--candidate'));
       stdout.writeln(
-        'Published validated candidate. Protected levels are unchanged.',
+        'Published validated candidate. Only exact approved catalog changes are allowed.',
       );
       break;
     case 'verify_sources':

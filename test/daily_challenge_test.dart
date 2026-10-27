@@ -163,6 +163,109 @@ void main() {
     },
   );
 
+  test('Expert 245 daily repair retains selection and completion', () async {
+    final day = [
+      for (var offset = 0; offset < DailyChallenge.puzzleCount; offset++)
+        DailyChallenge(DateTime(2026, 1, 1 + offset)),
+    ].firstWhere((day) => day.world == 9 && day.level == 245);
+    final preferences = await SharedPreferences.getInstance();
+    final key = 'daily_v3_progress_${day.dateKey}';
+    for (var currentRung = 0; currentRung <= 4; currentRung++) {
+      final old = LevelState(9, 245, 9, currentRung, 4, [
+        'again'.split(''),
+        'vagina'.split(''),
+        'vaginae'.split(''),
+        'averaging'.split(''),
+      ]);
+      await preferences.setString(key, jsonEncode(old.toJson()));
+      await preferences.setBool(
+        'daily_v3_completed_${day.dateKey}',
+        currentRung == 4,
+      );
+      await game.initialize(force: true);
+      final repaired = game.getDailyState(day);
+      expect(repaired.currentRung, currentRung);
+      expect(repaired.levelLetters.last.join(), 'averaging');
+      expect(game.isDailyCompleted(day), currentRung == 4);
+      expect(preferences.getString(key), jsonEncode(repaired.toJson()));
+      expect(
+        (await game.getDailyLadder(day))
+            .getBottomUp()
+            .map((rung) => rung.words),
+        [
+          ['grain'],
+          ['raving'],
+          ['graving'],
+          ['averaging'],
+        ],
+      );
+      expect(game.getLevelState(9, 245).isEmpty, isTrue);
+      await game.initialize(force: true);
+      expect(game.getDailyState(day).toJson(), repaired.toJson());
+    }
+  });
+
+  test('catalog repairs persist v1, v2 and v3 daily selections', () async {
+    final preferences = await SharedPreferences.getInstance();
+    for (final version in [1, 2, 3]) {
+      for (final entry in LevelState.catalogRepairs.entries) {
+        final (world, level) = entry.key;
+        if (version < 3 && (level > 50 || (version == 1 && world != 6))) {
+          continue;
+        }
+        final days = [
+          for (var offset = 0; offset < DailyChallenge.puzzleCount; offset++)
+            switch (version) {
+              1 => DailyChallenge.legacy(DateTime(2026, 1, 1 + offset)),
+              2 => DailyChallenge.previous(DateTime(2026, 1, 1 + offset)),
+              _ => DailyChallenge(DateTime(2026, 1, 1 + offset)),
+            },
+        ];
+        final day = days.firstWhere(
+          (day) =>
+              day.world == world &&
+              day.level == level &&
+              (version == 1 ||
+                  !preferences.containsKey(
+                    'daily_v1_progress_${day.dateKey}',
+                  )) &&
+              (version != 3 ||
+                  !preferences.containsKey('daily_v2_progress_${day.dateKey}')),
+        );
+        final words = entry.value.before;
+        final key = 'daily_v${version}_progress_${day.dateKey}';
+        final completedKey = 'daily_v${version}_completed_${day.dateKey}';
+        for (var currentRung = 0; currentRung <= words.length; currentRung++) {
+          final old = LevelState(
+            world,
+            level,
+            world,
+            currentRung,
+            words.length,
+            words.map((word) => word.split('')).toList(),
+          );
+          await preferences.setString(key, jsonEncode(old.toJson()));
+          await preferences.setBool(completedKey, currentRung == words.length);
+          final expected = LevelState.fromJson(old.toJson());
+          await game.initialize(force: true);
+          expect(game.getDailyState(day).toJson(), expected.toJson());
+          expect(preferences.getString(key), jsonEncode(expected.toJson()));
+          expect(game.isDailyCompleted(day), currentRung == words.length);
+          expect(
+            (
+              game.dailyForDate(day.date).world,
+              game.dailyForDate(day.date).level,
+            ),
+            (world, level),
+          );
+          expect(game.getLevelState(world, level).isEmpty, isTrue);
+        }
+        await preferences.remove(key);
+        await preferences.remove(completedKey);
+      }
+    }
+  });
+
   test('started v2 dailies keep their original puzzle and progress', () async {
     final old = DailyChallenge.previous(now);
     final progress = await completedLevel(game, old.world, old.level);

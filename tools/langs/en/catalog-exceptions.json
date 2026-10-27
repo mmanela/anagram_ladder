@@ -1,1 +1,50 @@
-[]
+[
+  {
+    "world": 9,
+    "level": 245,
+    "before": "c4d68d35d6a8ff1d5f482af6c02cadf504562fb92eb329d5a0938ad278557b45",
+    "after": "145b1f23095c8d9afdc197f410d081234f8d4f1d9ea7e0c844f823107dc683c8",
+    "reason": "Replace the two anatomical-only rungs with grain, raving, and graving, retaining averaging and the same four rung lengths.",
+    "migration": "LevelState repairs old Expert 245 rows on read. Solved lower rows use the replacement answers; active lower rows receive the new letters; future blank rows and the final row are retained. GameState persists regular and dated v3 daily repairs without changing rung progress, completion, or daily selection."
+  },
+  {
+    "world": 6,
+    "level": 49,
+    "before": "e9b7960c5ac35a97d0b87eec165f0579edacf4f91c46d062cc7231dcdee707dd",
+    "after": "5b799c290929576c547a686b3ceb03c43b8ea2593528236305b0ac66d7603fca",
+    "reason": "Explicit user approval to repair this free puzzle's anatomical-only rung. Replace it with aunt/tuna, retaining the level position, upper rungs, and rung lengths.",
+    "migration": "LevelState replaces populated old letter sets, preserving solved-rung progress, completion, blank future rows, and unchanged upper rows. GameState persists regular and v1/v2/v3 daily saves without changing selections."
+  },
+  {
+    "world": 6,
+    "level": 144,
+    "before": "24aa23ccce00c8adb94dba176d8204eedfc157d93495d6c15ebf4dcabb8b9a4d",
+    "after": "8f431395b2590f6e4475c8cc3230cfc9bbd013754912777979a98d71036732d1",
+    "reason": "User-approved replacement of an anatomical-only ladder with fair, fairs, safari, retaining the level position and rung lengths.",
+    "migration": "LevelState replaces populated old letter sets, preserving solved-rung progress, completion, and blank future rows. GameState persists regular and v3 daily saves without changing selections."
+  },
+  {
+    "world": 9,
+    "level": 136,
+    "before": "bddee4e2cbcf4c51c45560a174ab8ae5e83c36a40ea09bc3be3f775869eaa737",
+    "after": "21943153c8f6edcdb04697b1898d5a8ded2bc3e662fbccd4fe22726024d353d4",
+    "reason": "User-approved replacement of the damnedest-only top rung with a grain, rating, staring, streaming path, retaining the level position and rung lengths.",
+    "migration": "LevelState replaces populated old letter sets, preserving solved-rung progress, completion, and blank future rows. GameState persists regular and v3 daily saves without changing selections."
+  },
+  {
+    "world": 10,
+    "level": 96,
+    "before": "540d4cee44af8028694305a3233fb425eee4aa962886689f2c0d2666ec79494a",
+    "after": "f2c62d417978c8b0f5110fbae3e1910d0d3c1c086b84084ed2302b19d87fbf49",
+    "reason": "User-approved replacement of the orgies-only rung with goners, retaining the other rungs, level position, and rung lengths.",
+    "migration": "LevelState replaces only the populated six-letter old row, preserving solved-rung progress, completion, blank future rows, and all other rows. GameState persists regular and v3 daily saves without changing selections."
+  },
+  {
+    "world": 10,
+    "level": 100,
+    "before": "e4849d91c20423e5ebd94d5002c5e704cd1f6636f691aa8b93d1b8747081a821",
+    "after": "04e1ac6338607d28c5ca399072bb2a5ce366a55d1ec5de188f6cb1f1a4b77ee6",
+    "reason": "User-approved replacement of the orgies-only rung with goners, retaining the other rungs, level position, and rung lengths.",
+    "migration": "LevelState replaces only the populated six-letter old row, preserving solved-rung progress, completion, blank future rows, and all other rows. GameState persists regular and v3 daily saves without changing selections."
+  }
+]

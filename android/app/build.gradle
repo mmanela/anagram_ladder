@@ -12,7 +12,7 @@ if (keystorePropertiesFile.exists()) {
 
 
 android {
-    namespace = "com.farblondzshet.anagramladder"
+    namespace = "com.lokshn.anagramladder"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -22,7 +22,7 @@ android {
     }
 
     defaultConfig { 
-        applicationId = "com.farblondzshet.anagramladder" 
+        applicationId = "com.lokshn.anagramladder"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

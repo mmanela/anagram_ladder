@@ -4,6 +4,66 @@ import 'anagramBuilder.dart';
 
 class HintWordSelector {
   static final shared = HintWordSelector();
+  static const excludedHintWords = {
+    'anus',
+    'arsed',
+    'asshole',
+    'assholes',
+    'bitch',
+    'craps',
+    'cunt',
+    'cunts',
+    'damnedest',
+    'dick',
+    'dicks',
+    'dicked',
+    'faggot',
+    'faggots',
+    'fart',
+    'farted',
+    'farting',
+    'farts',
+    'fuck',
+    'fucks',
+    'fucked',
+    'fucking',
+    'fucker',
+    'fuckers',
+    'genital',
+    'genitals',
+    'hells',
+    'incest',
+    'kike',
+    'kikes',
+    'nigger',
+    'niggers',
+    'nigga',
+    'niggas',
+    'nuder',
+    'nudes',
+    'orgies',
+    'penis',
+    'pussier',
+    'pussy',
+    'rape',
+    'raped',
+    'raper',
+    'rapers',
+    'rapes',
+    'raping',
+    'shit',
+    'shits',
+    'slut',
+    'sluts',
+    'testes',
+    'twat',
+    'twats',
+    'vagina',
+    'vaginae',
+    'vaginate',
+    'whore',
+    'whores',
+  };
   final AssetBundle _assets;
   Map<String, int>? _ranks;
   Future<Map<String, int>>? _loading;
@@ -13,7 +73,11 @@ class HintWordSelector {
   Future<String> select(List<String> words) async {
     if (words.isEmpty)
       throw ArgumentError.value(words, 'words', 'Must not be empty');
-    if (words.length == 1) return words.single;
+    final candidates = words
+        .where((word) => !excludedHintWords.contains(word))
+        .toList();
+    if (candidates.isEmpty) throw StateError('This rung has no suitable hint');
+    if (candidates.length == 1) return candidates.single;
     final Map<String, int> ranks;
     try {
       ranks = _ranks ?? await (_loading ??= _loadRanks());
@@ -21,8 +85,8 @@ class HintWordSelector {
       _loading = null;
       rethrow;
     }
-    var selected = words.first;
-    for (final word in words.skip(1)) {
+    var selected = candidates.first;
+    for (final word in candidates.skip(1)) {
       if ((ranks[word] ?? 100) < (ranks[selected] ?? 100)) {
         selected = word;
       }
