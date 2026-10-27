@@ -124,6 +124,7 @@ Future<List<Map<String, Object>>> compatibilityChanges(
   Map<int, List<LadderLevel>> catalog, {
   String lockPath = catalogLockPath,
   String exceptionsPath = catalogExceptionsPath,
+  bool requireMatchingApprovals = true,
 }) async {
   final lock =
       jsonDecode(await File(lockPath).readAsString()) as Map<String, dynamic>;
@@ -174,9 +175,11 @@ Future<List<Map<String, Object>>> compatibilityChanges(
     for (var index = 0; index < expected.length; index++) {
       final after = fingerprint(catalog[world]![index].toJson());
       final approval = approvals['$world/${index + 1}'];
-      if (approval != null &&
-          (approval['before'] != expected[index] ||
-              approval['after'] != after)) {
+      final approved =
+          approval != null &&
+          approval['before'] == expected[index] &&
+          approval['after'] == after;
+      if (requireMatchingApprovals && approval != null && !approved) {
         throw StateError('Stale catalog exception for $world/${index + 1}');
       }
       if (after == expected[index]) continue;
@@ -185,7 +188,7 @@ Future<List<Map<String, Object>>> compatibilityChanges(
         'level': index + 1,
         'before': expected[index],
         'after': after,
-        'approved': approval != null,
+        'approved': approved,
         'immutable': index < 50,
       });
     }

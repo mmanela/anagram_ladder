@@ -160,7 +160,10 @@ Future<void> run(List<String> arguments) async {
         ...catalogFiles(catalog),
         'report.json': encoder.convert({
           ...await compareCatalogs(catalog, previous),
-          'compatibilityChanges': await compatibilityChanges(catalog),
+          'compatibilityChanges': await compatibilityChanges(
+            catalog,
+            requireMatchingApprovals: false,
+          ),
           'vocabularyHashes': {
             for (final entry in vocabulary.files.entries)
               entry.key: sha256.convert(utf8.encode(entry.value)).toString(),

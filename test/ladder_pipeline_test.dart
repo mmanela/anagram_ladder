@@ -205,6 +205,33 @@ void main() {
     final words = catalog[6]![48].words;
     words.setAll(0, words.reversed.toList());
     await expectLater(compatibilityChanges(catalog), throwsStateError);
+    final changes = await compatibilityChanges(
+      catalog,
+      requireMatchingApprovals: false,
+    );
+    final normal49 = changes.singleWhere(
+      (change) => change['world'] == 6 && change['level'] == 49,
+    );
+    expect(normal49['approved'], isFalse);
+    expect(normal49['immutable'], isTrue);
+    expect(
+      changes
+          .where((change) => change != normal49)
+          .map((change) => change['approved']),
+      everyElement(isTrue),
+    );
+    final path = await candidate();
+    await expectLater(
+      cli.run(['validate', '--candidate', path]),
+      throwsStateError,
+    );
+    final target = '${temporary.path}/published';
+    await writeCandidate(target, {'sentinel.txt': 'unchanged'});
+    await expectLater(
+      publishCandidate(path, destination: target),
+      throwsStateError,
+    );
+    expect(await File('$target/sentinel.txt').readAsString(), 'unchanged');
   });
 
   test(

@@ -479,6 +479,8 @@ dart run tools/main.dart repair_ladders --vocabulary .dart_tool/ladder_candidate
 
 Review each candidate's `report.json` for changed puzzle positions, before/after
 layouts and answers, rung counts, fingerprints, and compatibility violations.
+Staging records candidates that differ from pinned approvals as unapproved changes
+instead of aborting the report; validation and publication still reject them.
 A full regenerated catalog is an experiment, not a publishable replacement:
 publication refuses any changed protected level except the exact approved Normal
 49 repair, and any unapproved paid change. Other protected repairs are refused.
