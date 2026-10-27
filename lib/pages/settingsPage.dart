@@ -135,6 +135,31 @@ class _SettingsPageState extends State<SettingsPage> {
                     },
                   ),
                 ),
+                const SizedBox(height: 16),
+                Card(
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.all(16),
+                    leading: const Icon(Icons.privacy_tip_outlined),
+                    title: const Text('Privacy policy'),
+                    subtitle: const Text(
+                      'Read how your information is handled.',
+                    ),
+                    onTap: () async {
+                      try {
+                        final opened = await launchUrl(
+                          Uri.parse(
+                            'https://matthewmanela.com/anagram-ladder-privacy-policy/',
+                          ),
+                          mode: LaunchMode.externalApplication,
+                        );
+                        if (!opened)
+                          _showError('Could not open the privacy policy');
+                      } catch (error) {
+                        _showError(error);
+                      }
+                    },
+                  ),
+                ),
                 const SizedBox(height: 32),
                 OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(

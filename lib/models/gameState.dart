@@ -253,7 +253,10 @@ class GameState with ChangeNotifier, WidgetsBindingObserver {
       if (_sharedPreferences == null) {
         _sharedPreferences = await SharedPreferences.getInstance();
       }
-      await _migrateNormal98Progress();
+      await _migrateRepairedLadderProgress(6, 98);
+      for (final (world, level) in LevelState.catalogRepairs.keys) {
+        await _migrateRepairedLadderProgress(world, level);
+      }
       for (var worldId in worldIds) {
         await getWorldOrLoad(worldId, force: force);
         if (_ladders[worldId]!.asMap().keys.any(
@@ -302,42 +305,48 @@ class GameState with ChangeNotifier, WidgetsBindingObserver {
     }
   }
 
-  Future<void> _migrateNormal98Progress() async {
+  Future<void> _migrateRepairedLadderProgress(int world, int level) async {
     final preferences = _sharedPreferences!;
-    final regular = getLevelState(6, 98);
+    final regular = getLevelState(world, level);
     if (!regular.isEmpty) {
-      final key = regular.getPrefKey(6, 98, 'levelLetters');
+      final key = regular.getPrefKey(world, level, 'levelLetters');
       final raw = preferences.getString(key)!;
       final encoded = jsonEncode(regular.levelLetters);
       if (encoded != jsonEncode(jsonDecode(raw))) {
         if (!await preferences.setString(key, encoded)) {
-          throw StateError('Could not save repaired Normal 98 progress');
+          throw StateError('Could not save repaired $world/$level progress');
         }
-        debugPrint('Ladder: repaired Normal 98 progress');
+        debugPrint('Ladder: repaired $world/$level progress');
       }
     }
-    for (final key in preferences.getKeys().where(
-      (key) => key.startsWith('daily_v3_progress_'),
-    )) {
-      final day = DailyChallenge.tryParse(
-        key.substring('daily_v3_progress_'.length),
-      );
-      if (day == null || day.world != 6 || day.level != 98) continue;
+    for (final key in preferences.getKeys()) {
+      final match = RegExp(r'^daily_v([123])_progress_(.+)$').firstMatch(key);
+      if (match == null) continue;
+      final parsed = DailyChallenge.tryParse(match[2]!);
+      if (parsed == null) continue;
+      final day = switch (match[1]) {
+        '1' => DailyChallenge.legacy(parsed.date),
+        '2' => DailyChallenge.previous(parsed.date),
+        _ => parsed,
+      };
+      if (day.world != world || day.level != level) continue;
       final raw = jsonDecode(preferences.getString(key)!);
       if (raw is! Map<String, dynamic> ||
-          raw['world'] != 6 ||
-          raw['level'] != 98) {
+          raw['world'] != world ||
+          raw['level'] != level) {
         throw const FormatException(
-          'Normal 98 daily save does not match its puzzle',
+          'Repaired daily save does not match its puzzle',
         );
       }
       final repaired = LevelState.fromJson(raw);
       final encoded = jsonEncode(repaired.toJson());
       if (encoded == jsonEncode(raw)) continue;
       if (!await preferences.setString(key, encoded)) {
-        throw StateError('Could not save repaired Normal 98 daily progress');
+        throw StateError(
+          'Could not save repaired $world/$level daily progress',
+        );
       }
-      debugPrint('Ladder: repaired Normal 98 daily progress');
+      debugPrint('Ladder: repaired $world/$level daily progress');
     }
   }
 

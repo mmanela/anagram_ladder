@@ -168,8 +168,9 @@ Errors mentioning `Pods-Runner` file lists or an iOS 9 deployment target indicat
 an older project configuration: the current project uses Swift Package Manager
 and targets iOS 15. Close the older project and reopen this checkout's workspace.
 
-The existing application IDs and Android release signing configuration are
-unchanged. Android release builds still require your private `android/key.properties`
+Android uses the application ID `com.lokshn.anagramladder` for republication under
+the new Google Play account. The Apple bundle IDs are unchanged.
+Android release builds still require your private `android/key.properties`
 and keystore. iOS device and App Store builds require your Apple signing setup.
 Neither is needed for the debug APK or iOS simulator build below.
 
@@ -377,17 +378,42 @@ Puzzle-data tests reject non-ASCII letters and malformed answers in every puzzle
 `tools/langs/en/catalog.lock.json` records SHA-256 fingerprints of all 1,250
 published puzzles after the Normal 98 repair. It locks order, letters, rungs,
 letter additions, accepted answers, and metadata independently of generation.
-**Levels 1-50 in every difficulty are immutable.** Do not regenerate the lock to
-make a failing check pass.
+**Levels 1-50 in every difficulty are immutable**, apart from the explicitly
+approved Normal 49 repair described below. Do not regenerate the lock to make a
+failing check pass.
 
 Other published puzzles also remain unchanged by default because regular saves
 and dated daily puzzles reference their existing positions. A targeted repair
 above level 50 requires a reviewed entry in `catalog-exceptions.json`, containing
 `world`, `level`, exact `before` and `after` fingerprints from the candidate report,
-and nonempty `reason` and `migration` notes. An approval cannot authorize changes
-to levels 1-50, duplicate an existing exception, or match a different candidate.
+and nonempty `reason` and `migration` notes. An approval cannot authorize arbitrary
+changes to levels 1-50, duplicate an existing exception, or match a different
+candidate. Normal 49 is additionally pinned to its exact reviewed before/after
+fingerprints in the compatibility validator; no other free-level edits are allowed.
 Implement and test the actual regular/daily save migration before approving a
 layout change; the notes do not perform a migration.
+
+Expert 245 has one approved repair: its lower rungs now use `grain`, `raving`,
+and `graving` instead of requiring anatomical words. The final word `averaging`,
+level position, and four rung lengths are unchanged. Existing regular and daily
+saves retain their rung progress and completion. Solved lower rows use the new
+answers, active lower rows receive the new letters, and the final row is retained.
+Five further younger-audience repairs retain their positions and rung lengths:
+
+| Puzzle | Replacement path (one accepted answer per rung) |
+| --- | --- |
+| Normal 49 | aunt, aunts, haunts |
+| Normal 144 | fair, fairs, safari |
+| Expert 136 | grain, rating, staring, streaming |
+| Genius 96 | ogres, goners, reposing, stoppering |
+| Genius 100 | ogres, goners, reposing, prospering |
+
+Saved rows matching the old letter sets are migrated. Solved changed rows use
+replacement answers; populated active/future changed rows receive the new letters.
+Unchanged rows, blank future rows, current rung, maximum solved length, and
+completion remain intact. Regular saves and all applicable v1/v2/v3 daily saves
+are persisted without changing the daily schedule. All other published puzzles
+and the independent catalog lock are unchanged.
 
 ### Vocabulary sources and processing
 
@@ -411,7 +437,20 @@ corrupted replacement character.
 
 The cleaned legacy vocabulary preserves every published answer. Hint selection
 continues using the original bundled SCOWL 10/20/35 tier files, so the cleanup
-does not change existing hint ranks.
+does not change existing hint ranks. `HintWordSelector.excludedHintWords` removes
+a reviewed list of sensitive words from hint candidates before ranking, including
+sole-answer requests. An excluded-only request fails explicitly rather than
+returning a blocked hint. Every bundled rung is tested to retain an eligible
+answer. `lusts` remains eligible and is hinted instead of `sluts` in Normal 60
+and Expert 141. Other accepted answers are unchanged outside the approved repairs.
+This is a hint policy, not an exhaustive vocabulary filter or legal certification.
+
+The public privacy policy is accessible from Settings and About. Both surfaces
+report failed launches rather than silently ignoring them. Android has no ads,
+accounts, or active in-app purchasing; progress and settings remain on device.
+The release-only Android manifest removes network and billing permissions added
+by transitive libraries. Debug/profile networking remains available for Flutter
+tooling; privacy links open in the external browser.
 
 ### Safe tooling workflow
 
@@ -441,8 +480,8 @@ dart run tools/main.dart repair_ladders --vocabulary .dart_tool/ladder_candidate
 Review each candidate's `report.json` for changed puzzle positions, before/after
 layouts and answers, rung counts, fingerprints, and compatibility violations.
 A full regenerated catalog is an experiment, not a publishable replacement:
-publication refuses any changed protected level and any unapproved paid change.
-Repairing a short protected level is also refused.
+publication refuses any changed protected level except the exact approved Normal
+49 repair, and any unapproved paid change. Other protected repairs are refused.
 
 Publication validates all dictionaries and puzzles before staging a replacement
 directory on the same filesystem. It preserves auxiliary processed files and
@@ -500,7 +539,8 @@ launcher sizes, web icons and favicon, and the Google Play listing icon.
 iOS artwork is full-bleed with platform-applied corners. Mac icons use an
 inset rounded square on a transparent canvas because macOS does not apply
 the iOS icon mask.
-In-game logos and the Google Play feature graphic are separate and unchanged.
+The Google Play feature graphic uses the same artwork with the game title and
+tagline on a warm neutral background. In-game logos remain separate and unchanged.
 Startup uses the same artwork in a compact rounded badge on the warm neutral
 background, with the game title, "Rearrange. Solve. Climb." tagline, and an
 accessible loading indicator. Reduced motion keeps the indicator static, and
@@ -519,6 +559,8 @@ The generator checks dimensions and opacity, including the 1024px App Store
 icon, and verifies the Mac icon sizes, transparent corners, and opaque centers.
 It also generates `assets/app_icon.png` for Flutter and the rounded native
 launch badges, whose transparent corners are checked separately.
+The Google Play feature graphic is generated at 1024 by 500 pixels without
+transparency.
 Android 8 and later use the matching adaptive vector layers in
 `android/app/src/main/res/drawable/ic_launcher_*.xml`; Android 13 and later also
 have a monochrome layer for themed icons. Keep these vectors in sync when
@@ -529,7 +571,7 @@ launcher masks do not clip the ladder.
 
 [<img src="https://matthewmanela.com/wp-content/uploads/2021/06/download-on-the-app-store-1.png" alt="ios" style="width:200px;"/>](https://apps.apple.com/us/app/anagram-ladder/id1566804631)
 
-[<img src="https://matthewmanela.com/wp-content/uploads/2021/06/google-play-badge-1-1-300x89.png" alt="ios" style="width:200px;"/>](https://play.google.com/store/apps/details?id=com.farblondzshet.anagramladder) 
+Android republication on Google Play is pending under `com.lokshn.anagramladder`.
 
 ## Screenshots
 

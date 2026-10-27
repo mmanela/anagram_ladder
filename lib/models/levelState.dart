@@ -3,6 +3,32 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class LevelState {
+  static const catalogRepairs = {
+    (6, 49): (
+      before: ['anus', 'tunas', 'haunts'],
+      after: ['aunt', 'aunts', 'haunts'],
+    ),
+    (6, 144): (
+      before: ['anus', 'sauna', 'faunas'],
+      after: ['fair', 'fairs', 'safari'],
+    ),
+    (9, 136): (
+      before: ['sedan', 'sanded', 'demands', 'damnedest'],
+      after: ['grain', 'rating', 'staring', 'streaming'],
+    ),
+    (9, 245): (
+      before: ['again', 'vagina', 'vaginae', 'averaging'],
+      after: ['grain', 'raving', 'graving', 'averaging'],
+    ),
+    (10, 96): (
+      before: ['ogres', 'orgies', 'reposing', 'stoppering'],
+      after: ['ogres', 'goners', 'reposing', 'stoppering'],
+    ),
+    (10, 100): (
+      before: ['ogres', 'orgies', 'reposing', 'prospering'],
+      after: ['ogres', 'goners', 'reposing', 'prospering'],
+    ),
+  };
   int world = -1;
   int level = -1;
   int maxWordLength = -1;
@@ -83,13 +109,15 @@ class LevelState {
       letters.add(row.cast<String>().toList());
     }
     return LevelState(
-      world,
-      level,
-      maxWordLength,
-      currentRung,
-      rungCount,
-      letters,
-    )..repairNormal98();
+        world,
+        level,
+        maxWordLength,
+        currentRung,
+        rungCount,
+        letters,
+      )
+      ..repairNormal98()
+      ..repairPublishedLadder();
   }
 
   LevelState.fromSharedPreferences(
@@ -120,6 +148,7 @@ class LevelState {
         .map((x) => (x as List<dynamic>).cast<String>())
         .toList();
     repairNormal98();
+    repairPublishedLadder();
   }
 
   bool repairNormal98() {
@@ -137,6 +166,32 @@ class LevelState {
               .map((letter) => letter == '\uFFFD' ? 't' : letter)
               .toList();
     return true;
+  }
+
+  bool repairExpert245() =>
+      world == 9 && level == 245 && repairPublishedLadder();
+
+  bool repairPublishedLadder() {
+    final repair = catalogRepairs[(world, level)];
+    if (repair == null ||
+        rungCount != repair.before.length ||
+        levelLetters.length != rungCount) {
+      return false;
+    }
+    var changed = false;
+    for (var index = 0; index < rungCount; index++) {
+      final before = repair.before[index].split('')..sort();
+      final after = repair.after[index].split('')..sort();
+      if (before.join() == after.join() ||
+          (levelLetters[index].toList()..sort()).join() != before.join()) {
+        continue;
+      }
+      levelLetters[index] = index < currentRung
+          ? repair.after[index].split('')
+          : after;
+      changed = true;
+    }
+    return changed;
   }
 
   Future save(SharedPreferences prefs) async {

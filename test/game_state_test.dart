@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:anagram_ladder/models/gameState.dart';
 import 'package:anagram_ladder/anagram/anagramLadderData.dart';
@@ -97,6 +98,62 @@ void main() {
       }
     },
   );
+
+  test('Expert 245 repair persists regular progress and completion', () async {
+    final preferences = await SharedPreferences.getInstance();
+    for (var currentRung = 0; currentRung <= 4; currentRung++) {
+      await LevelState(9, 245, 9, currentRung, 4, [
+        'again'.split(''),
+        'vagina'.split(''),
+        'vaginae'.split(''),
+        'averaging'.split(''),
+      ]).save(preferences);
+      await state.initialize(force: true);
+      final repaired = state.getLevelState(9, 245);
+      expect(repaired.currentRung, currentRung);
+      expect(repaired.isWon, currentRung == 4);
+      expect(repaired.levelLetters.last.join(), 'averaging');
+      expect(
+        preferences.getString('v5_9_245_levelLetters'),
+        isNot(contains('["v","a","g","i","n","a"]')),
+      );
+      expect(
+        preferences.getString('v5_9_245_levelLetters'),
+        jsonEncode(repaired.levelLetters),
+      );
+      await state.initialize(force: true);
+      expect(state.getLevelState(9, 245).toJson(), repaired.toJson());
+    }
+  });
+
+  test('all approved catalog repairs persist regular saved progress', () async {
+    final preferences = await SharedPreferences.getInstance();
+    for (final entry in LevelState.catalogRepairs.entries) {
+      final (world, level) = entry.key;
+      final words = entry.value.before;
+      for (var currentRung = 0; currentRung <= words.length; currentRung++) {
+        final old = LevelState(
+          world,
+          level,
+          world,
+          currentRung,
+          words.length,
+          words.map((word) => word.split('')).toList(),
+        );
+        await old.save(preferences);
+        final expected = LevelState.fromJson(old.toJson());
+        await state.initialize(force: true);
+        final repaired = state.getLevelState(world, level);
+        expect(repaired.toJson(), expected.toJson());
+        expect(
+          preferences.getString('v5_${world}_${level}_levelLetters'),
+          jsonEncode(repaired.levelLetters),
+        );
+        await state.initialize(force: true);
+        expect(state.getLevelState(world, level).toJson(), expected.toJson());
+      }
+    }
+  });
 
   test(
     'disposing during game loading does not notify disposed listeners',

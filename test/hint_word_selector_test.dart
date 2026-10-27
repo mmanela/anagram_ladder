@@ -52,6 +52,46 @@ void main() {
     expect(await selector.select(['mystery', 'unknown']), 'mystery');
   });
 
+  test('prefers lusts over sluts without changing accepted answers', () async {
+    final assets = HintTestAssets();
+    final selector = HintWordSelector(assets: assets);
+    final words = ['sluts', 'lusts'];
+    expect(await selector.select(words), 'lusts');
+    expect(await selector.select(words.reversed.toList()), 'lusts');
+    expect(words, ['sluts', 'lusts']);
+    expect(assets.loads, 0);
+  });
+
+  test('excludes sensitive answers before vocabulary ranking', () async {
+    final assets = HintTestAssets();
+    assets.contents[AnagramLadderBuilder.getScowlFile('english-words.10')] =
+        'raped\nrape\nraping\nsluts\n';
+    assets.contents[AnagramLadderBuilder.getScowlFile('english-words.35')] =
+        'drape\npear\nparing\nlusts\n';
+    final selector = HintWordSelector(assets: assets);
+    for (final (blocked, alternative) in [
+      ('raped', 'drape'),
+      ('rape', 'pear'),
+      ('raping', 'paring'),
+      ('sluts', 'lusts'),
+    ]) {
+      expect(await selector.select([blocked, alternative]), alternative);
+    }
+    expect(await selector.select(['raped', 'tars', 'rats']), 'rats');
+  });
+
+  test('excluded-only answers fail explicitly without a fallback', () async {
+    final selector = HintWordSelector(assets: HintTestAssets());
+    for (final word in HintWordSelector.excludedHintWords) {
+      await expectLater(selector.select([word]), throwsStateError);
+    }
+    await expectLater(
+      selector.select(['rape', 'raped', 'raping']),
+      throwsStateError,
+    );
+    expect(await selector.select(['lusts']), 'lusts');
+  });
+
   test('caches dictionary data across hint requests', () async {
     final assets = HintTestAssets();
     final selector = HintWordSelector(assets: assets);

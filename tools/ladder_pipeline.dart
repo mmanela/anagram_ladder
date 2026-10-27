@@ -135,10 +135,19 @@ Future<List<Map<String, Object>>> compatibilityChanges(
     final approval = value as Map;
     final world = approval['world'];
     final level = approval['level'];
+    // The user explicitly approved this one free-level repair.
+    final approvedNormal49 =
+        world == 6 &&
+        level == 49 &&
+        approval['before'] ==
+            'e9b7960c5ac35a97d0b87eec165f0579edacf4f91c46d062cc7231dcdee707dd' &&
+        approval['after'] ==
+            '5b799c290929576c547a686b3ceb03c43b8ea2593528236305b0ac66d7603fca';
     if (world is! int ||
         !AnagramLadderBuilder.MinimumWordLengthMap.containsKey(world) ||
         level is! int ||
-        level <= 50 ||
+        level < 1 ||
+        (level <= 50 && !approvedNormal49) ||
         level > 250 ||
         approval['reason'] is! String ||
         (approval['reason'] as String).trim().isEmpty ||
@@ -176,7 +185,7 @@ Future<List<Map<String, Object>>> compatibilityChanges(
         'level': index + 1,
         'before': expected[index],
         'after': after,
-        'approved': index >= 50 && approval != null,
+        'approved': approval != null,
         'immutable': index < 50,
       });
     }

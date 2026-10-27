@@ -89,6 +89,29 @@ for (const [path, size] of targets) {
 
 console.log(`Generated and verified ${targets.size} icons from assets/app_icon.svg.`);
 
+const featureGraphic = new URL('assets/GooglePlay/ag_logo_wide_1024x500.png', root);
+const featureSource = Buffer.from(
+  `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="500" viewBox="0 0 1024 500">
+    <rect width="1024" height="500" fill="#faf7f2"/>
+    <image href="data:image/svg+xml;base64,${source.toString('base64')}"
+           x="64" y="70" width="360" height="360"/>
+    <g fill="#2d273b" font-family="Arial, Helvetica, sans-serif">
+      <text x="480" y="225" font-size="68" font-weight="700">Anagram</text>
+      <text x="480" y="305" font-size="68" font-weight="700">Ladder</text>
+      <text x="480" y="365" font-size="26">Rearrange. Solve. Climb.</text>
+    </g>
+  </svg>`,
+);
+await sharp(featureSource)
+  .removeAlpha()
+  .png()
+  .toFile(fileURLToPath(featureGraphic));
+const featureMetadata = await sharp(fileURLToPath(featureGraphic)).metadata();
+assert.equal(featureMetadata.width, 1024, 'Google Play feature graphic');
+assert.equal(featureMetadata.height, 500, 'Google Play feature graphic');
+assert.equal(featureMetadata.hasAlpha, false, 'Google Play feature graphic must be opaque');
+console.log('Generated and verified the Google Play feature graphic.');
+
 const launchTargets = [
   ['ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImage.png', 120],
   ['ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImage@2x.png', 240],

@@ -44,7 +44,9 @@ void main() {
 
   Future<String> approvals(List<Map<String, Object>> values) async {
     final file = File('${temporary.path}/exceptions.json');
-    await file.writeAsString(jsonEncode(values));
+    final published =
+        jsonDecode(await File(catalogExceptionsPath).readAsString()) as List;
+    await file.writeAsString(jsonEncode([...published, ...values]));
     return file.path;
   }
 
@@ -67,7 +69,24 @@ void main() {
         expect(pair.$1.length, pair.$2.length);
         expect(pair.$1.containsAll(pair.$2), isTrue);
       }
-      expect(await compatibilityChanges(catalog), isEmpty);
+      final changes = await compatibilityChanges(catalog);
+      expect(changes, hasLength(6));
+      expect(
+        changes.map((change) => (change['world'], change['level'])),
+        unorderedEquals([
+          (6, 49),
+          (6, 144),
+          (9, 136),
+          (9, 245),
+          (10, 96),
+          (10, 100),
+        ]),
+      );
+      expect(changes.map((change) => change['approved']), everyElement(isTrue));
+      expect(
+        changes.where((change) => change['immutable'] == true).single['level'],
+        49,
+      );
       final lock =
           jsonDecode(await File(catalogLockPath).readAsString()) as Map;
       expect(lock['immutableLevels'], 50);
@@ -81,9 +100,12 @@ void main() {
       final index = reverseAnswers(paid: false);
       validateCatalog(catalog, vocabulary);
       final changes = await compatibilityChanges(catalog);
-      expect(changes, hasLength(1));
-      expect(changes.single['level'], index + 1);
-      expect(changes.single['immutable'], isTrue);
+      expect(changes, hasLength(7));
+      final protected = changes.singleWhere(
+        (change) => change['world'] == 6 && change['level'] == index + 1,
+      );
+      expect(protected['level'], index + 1);
+      expect(protected['immutable'], isTrue);
       final target = '${temporary.path}/published';
       await writeCandidate(target, {'sentinel.txt': 'unchanged'});
       await expectLater(
@@ -99,7 +121,9 @@ void main() {
     'paid changes require exact before/after hashes and migration notes',
     () async {
       final index = reverseAnswers(paid: true);
-      final change = (await compatibilityChanges(catalog)).single;
+      final change = (await compatibilityChanges(catalog)).singleWhere(
+        (change) => change['world'] == 6 && change['level'] == index + 1,
+      );
       expect(change['approved'], isFalse);
       final approved = {
         'world': 6,
@@ -111,10 +135,9 @@ void main() {
       };
       final path = await approvals([approved]);
       expect(
-        (await compatibilityChanges(
-          catalog,
-          exceptionsPath: path,
-        )).single['approved'],
+        (await compatibilityChanges(catalog, exceptionsPath: path)).singleWhere(
+          (change) => change['world'] == 6 && change['level'] == index + 1,
+        )['approved'],
         isTrue,
       );
       final target = '${temporary.path}/published';
@@ -137,7 +160,7 @@ void main() {
           await loadCatalog(target),
           exceptionsPath: path,
         ),
-        hasLength(1),
+        hasLength(7),
       );
       expect(await Directory('$target.publish-backup').exists(), isFalse);
       await approvals([
@@ -159,7 +182,9 @@ void main() {
 
   test('an exception cannot authorize changing a protected puzzle', () async {
     final index = reverseAnswers(paid: false);
-    final change = (await compatibilityChanges(catalog)).single;
+    final change = (await compatibilityChanges(catalog)).singleWhere(
+      (change) => change['world'] == 6 && change['level'] == index + 1,
+    );
     final path = await approvals([
       {
         'world': 6,
@@ -174,6 +199,12 @@ void main() {
       compatibilityChanges(catalog, exceptionsPath: path),
       throwsFormatException,
     );
+  });
+
+  test('Normal 49 approval cannot authorize another candidate', () async {
+    final words = catalog[6]![48].words;
+    words.setAll(0, words.reversed.toList());
+    await expectLater(compatibilityChanges(catalog), throwsStateError);
   });
 
   test(

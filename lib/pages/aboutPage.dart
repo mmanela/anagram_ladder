@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -18,7 +17,23 @@ class AboutPage extends StatelessWidget {
     return Markdown(
       onTapLink: (String text, String? href, String title) async {
         if (href != null) {
-          await launchUrl(Uri.parse(href));
+          try {
+            if (!await launchUrl(
+              Uri.parse(href),
+              mode: LaunchMode.externalApplication,
+            )) {
+              throw StateError('No application is available for this link');
+            }
+          } catch (error) {
+            debugPrint('About: could not open link: $error');
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Could not open this link. Please try again.'),
+                ),
+              );
+            }
+          }
         }
       },
       styleSheet: MarkdownStyleSheet(
@@ -47,8 +62,9 @@ your progress and you can always go back and try again (or use hints).
 ` `  
 ` `
 ## How do hints work?
-In each rung of the word ladder you can ask for hints. For every 
-possible word in that rung you can reveal both the first and the last letter.
+In each rung of the word ladder you can ask for a hint revealing the first and
+last letters of one possible answer. Hints avoid a reviewed list of sensitive
+words. Other valid words can still be accepted when you arrange them yourself.
 ` `  
 ` `
 ## Why did a rung complete on its own?
@@ -56,6 +72,12 @@ Sometimes luck is on your side. If by chance the next letters revealed
 make a word it will mark it correct and move on.
 This is a good thing and consider it an early birthday present!
 ` `  
+` `
+## Privacy
+No account is required. Game progress and settings are stored on your device.
+Read the [privacy policy](https://matthewmanela.com/anagram-ladder-privacy-policy/)
+for details.
+` `
 ` `
 ## Who created this game?
 Anagram Ladder was created by [Matthew Manela](https://matthewmanela.com) as a fun project to learn
